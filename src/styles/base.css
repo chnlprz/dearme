@@ -1,0 +1,30 @@
+*, *::before, *::after { box-sizing: border-box; min-width: 0; }
+html, body { margin: 0; padding: 0; overscroll-behavior: none; }
+html { background: var(--night); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+body { color: var(--ink); font: calc(15px * var(--text-scale)) / 1.45 var(--sans); min-height: 100dvh; overscroll-behavior: none; }
+/* The evening sky: one fixed layer behind everything */
+html::before {
+  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none; transform: translateZ(0);
+  background: radial-gradient(90% 55% at 50% 38%, rgba(170, 90, 210, .22), transparent 70%),
+              linear-gradient(180deg, var(--night-top) 0%, var(--night-mid) 45%, var(--night) 100%);
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.wordmark { font-family: var(--wordmark); font-weight: 500; font-variation-settings: 'opsz' 11; letter-spacing: -0.015em; line-height: 1.05; margin: 0; }
+.wordmark .c { color: var(--gold); }
+.serif { font-family: var(--serif); font-style: italic; font-weight: 500; }
+.muted { color: var(--muted); }
+.label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+.btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; border-radius: var(--r-pill); border: 0;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold-lo)); color: var(--on-gold); font-weight: 600; font-size: 16px; }
+.btn-secondary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: transparent; color: var(--ink); font-weight: 500; }
+.btn-text { border: 0; background: none; color: var(--muted); min-height: var(--tap); padding: 0 var(--s2); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s4); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0s !important; transition-duration: 1ms !important; }
+}

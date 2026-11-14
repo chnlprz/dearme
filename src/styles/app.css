@@ -1,0 +1,64 @@
+/* ---------- shell ---------- */
+.shell { max-width: 440px; margin: 0 auto; min-height: 100dvh; position: relative; }
+.view { min-height: 100dvh; display: flex; flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 22px) 0 calc(env(safe-area-inset-bottom) + var(--tabbar) + 12px); }
+.head { padding: 0 22px; display: flex; flex-direction: column; gap: 8px; }
+.head .date { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.head .wordmark { font-size: 40px; }
+.mirror { margin: 10px 22px 0; font-size: 14px; color: var(--muted); }
+.title { padding: 0 22px; font-size: 30px; margin: 0; }
+
+/* ---------- tab bar: Jar · Shelf · Settings ---------- */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; border-top: 1px solid var(--line); background: rgba(26, 10, 42, .92);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); padding: 6px 18px calc(env(safe-area-inset-bottom) + 10px); }
+.tabbar .in { max-width: 440px; margin: 0 auto; display: flex; justify-content: space-around; }
+.tabbar button { border: 0; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px;
+  min-width: 88px; min-height: 52px; justify-content: center; font-size: 11px; font-weight: 500; }
+.tabbar button[aria-current="page"] { color: var(--gold); font-weight: 600; }
+
+/* ---------- home ---------- */
+.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 8px 0; min-height: 360px; }
+.jar-svg { width: min(68vw, 262px); height: auto; overflow: visible; }
+.progress { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 15px; }
+.progress b { font-weight: 600; }
+.bar { width: 62%; max-width: 240px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--pink), var(--orchid), var(--gold)); transition: width .6s var(--ease-out); }
+.slots { padding: 0 18px; display: flex; flex-direction: column; gap: 8px; }
+.slot-empty { width: 100%; text-align: left; border: 1px dashed var(--line); border-radius: 18px; background: rgba(42, 20, 70, .55);
+  padding: 18px; display: flex; align-items: center; gap: 14px; min-height: 76px; color: var(--ink); }
+.slot-empty .plus { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold); display: flex; align-items: center; justify-content: center; flex: none; }
+.slot-empty .t { font-size: 19px; }
+.slot-empty .s { font-size: 13px; color: var(--muted); }
+
+/* ---------- shelf ---------- */
+.shelf-head { padding: 14px 22px 0; display: flex; justify-content: space-between; align-items: baseline; }
+.shelf-head .serif { font-size: 24px; }
+.empty { margin: 40px 28px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.plank { height: 12px; border-radius: 4px; background: linear-gradient(180deg, #8a5a3a, #5b3824); box-shadow: 0 10px 22px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,220,180,.25); }
+
+/* ---------- settings ---------- */
+.groups { padding: 18px 18px 24px; display: flex; flex-direction: column; gap: 22px; }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.group > .label { padding-left: 4px; }
+.rows { border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; min-height: 52px; border-bottom: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; color: var(--ink); }
+.rows > .row:last-child { border-bottom: 0; }
+.row .t { font-size: 15px; display: block; }
+.row .d { font-size: 13px; color: var(--muted); display: block; }
+.switch { width: 50px; height: 30px; border-radius: 15px; border: 0; background: #4a3566; position: relative; flex: none; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); transition: left .2s var(--ease-out), background .2s; }
+.switch[aria-checked="true"] { background: var(--gold); }
+.switch[aria-checked="true"]::after { left: 23px; background: var(--on-gold); }
+.copyright { text-align: center; font-size: 12px; color: var(--muted); margin: 0; }
+
+/* ---------- floating particles (Home, Shelf, Welcome) ---------- */
+.particles { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.particles span { position: absolute; border-radius: 50%; animation: pt-drift var(--d) ease-in-out var(--dl) infinite alternate, pt-twinkle calc(var(--d) * .45) ease-in-out var(--dl) infinite alternate; }
+@keyframes pt-drift { from { transform: translate(0, 0); } to { transform: translate(var(--dx), var(--dy)); } }
+@keyframes pt-twinkle { from { opacity: .2; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .particles span { animation: none; opacity: .6; } }
+
+/* ---------- toast ---------- */
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 12px); transform: translateX(-50%); z-index: 50; padding: 10px 16px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--gold); font-size: 13px; white-space: nowrap; animation: toast-in .3s var(--ease-out); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } }

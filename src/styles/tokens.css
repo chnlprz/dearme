@@ -1,0 +1,37 @@
+/* Dear Me, design tokens (Bible › Design system: Plum Midnight). Colours, sizes and radii come only from here. */
+@font-face { font-family: 'Bodoni Moda'; src: url('/fonts/BodoniModa-opsz.woff2') format('woff2'); font-weight: 400 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Fraunces'; src: url('/fonts/Fraunces-500-italic.woff2') format('woff2'); font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+
+:root {
+  /* Plum Midnight */
+  --night: #1a0a2a;      /* base background */
+  --night-top: #341556;  /* top of the sky */
+  --night-mid: #24103f;
+  --surface: #2a1446;    /* cards, sheets */
+  --line: #462866;       /* borders, dividers */
+  --ink: #f3eefc;        /* main text */
+  --muted: #bdb3dc;      /* secondary text */
+  --pink: #ff8fb8;       /* heart, progress start, badges */
+  --orchid: #d79bff;     /* accents, glow */
+  --moon: #cfd8ff;       /* cool glints */
+  --gold: #efb94f;       /* main actions, jar outline, comma, brand */
+  --gold-hi: #f6dca6;
+  --gold-lo: #d9b26e;
+  --on-gold: #1a0d2e;
+  --scrim: rgba(8, 3, 16, .6);
+
+  --wordmark: 'Bodoni Moda', 'Bodoni 72', Didot, Georgia, serif; /* weight 500, opsz 11: sturdy, never thin */
+  --serif: 'Fraunces', Georgia, serif; /* italic 500: headings and promise text */
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-scale: 1;
+
+  --r-sm: 10px; --r-md: 16px; --r-lg: 24px; --r-pill: 999px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
+  --tap: 44px;
+  --tabbar: 76px;
+  --ease-out: cubic-bezier(.2, .7, .2, 1);
+  color-scheme: dark;
+}

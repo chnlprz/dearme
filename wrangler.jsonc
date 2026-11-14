@@ -1,0 +1,19 @@
+{
+  // Cloudflare Worker: static assets from dist/ plus a small API under /api.
+  // Phase 1: assets + /api/health. Passkeys and sync arrive in Phase 9, Gentle Help (Claude API) in Phase 10.
+  // Served at dearme.innovaspace.app (custom domain).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dearme",
+  "main": "worker/index.ts",
+  "workers_dev": true,
+  "routes": [{ "pattern": "dearme.innovaspace.app", "custom_domain": true }],
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": { "RP_ID": "innovaspace.app" }
+}
