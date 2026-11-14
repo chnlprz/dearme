@@ -1,4 +1,4 @@
-# Dear Me, 0.1
+# Dear Me, 0.2
 
 Self-trust PWA by Innova Space: make small promises to yourself; every promise you keep becomes a glowing orb in a jar. 12 orbs fill a jar; sealed jars live on the Shelf exactly as they were. Standalone self-care app: **no links or shared data with Nudge!, Noggin? or Drift** (only the Innova Space passkey for sign-in, Phase 9).
 
@@ -24,7 +24,10 @@ Vite + TypeScript (no framework), Dexie over IndexedDB (`src/db`), vite-plugin-p
 - Copy: gentle, short, Taglish allowed where the Bible uses it.
 
 ## Build phases (Bible › Tech)
-1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) · 3. Promises: tap options, hold to keep, Edit, Refine, Release · 4. Seal, Shelf, rename, jar detail, tap an orb · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
+1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release · 4. Seal, Shelf, rename, jar detail, tap an orb · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
 
 ## Beta test mode
 Settings › About › tap the version 7 times. Sandbox jar (`sandbox: true` rows never mix with real ones), unlock all, animation replays. Remove or hide before public launch.
+
+## Jar engine (`src/jar/engine.js` + `engine.d.ts`)
+Plain JS port of the jar test (canvas 2D + physics). API: mountJar / unmountJar, dropOrb (cork lifts, orb drops, `done` when landed), shakeJar, setJarStyle, setJarLabel, highlightOrb, snapshot (freeze positions when sealing), orbScreenPos, drawStillJar (shelf, pickers), drawOrbPreview. `src/logic/jar.ts` = current jar + orb records (each orb stores its inside and colour).

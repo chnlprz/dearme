@@ -17,7 +17,7 @@
 .tabbar button[aria-current="page"] { color: var(--gold); font-weight: 600; }
 
 /* ---------- home ---------- */
-.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 8px 0; min-height: 360px; }
+.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0; min-height: 360px; }
 .jar-svg { width: min(68vw, 262px); height: auto; overflow: visible; }
 .progress { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 15px; }
 .progress b { font-weight: 600; }
@@ -62,3 +62,10 @@
 .toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 12px); transform: translateX(-50%); z-index: 50; padding: 10px 16px; border-radius: var(--r-pill);
   background: var(--surface); border: 1px solid var(--gold); font-size: 13px; white-space: nowrap; animation: toast-in .3s var(--ease-out); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+
+/* ---------- live jar ---------- */
+.jar-box { width: 100%; display: flex; justify-content: center; min-height: 380px; }
+.jar-box canvas { display: block; touch-action: none; cursor: grab; }
+.chip-beta { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: var(--r-pill); background: var(--orchid); color: var(--on-gold); font-size: 10px; letter-spacing: .08em; vertical-align: 1px; }
+.pick { background: none; border: 0; color: var(--muted); font-size: 14px; text-align: right; max-width: 55%; }
+.pick option { background: var(--surface); color: var(--ink); }
