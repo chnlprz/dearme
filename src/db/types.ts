@@ -66,6 +66,8 @@ export interface Settings {
   inside: InsideId; // what new orbs look like
   gentleHelp: boolean;
   checkins: boolean;
+  sound: boolean; // soft glass clinks when orbs touch
+  motion: boolean; // tilt and shake the phone to move the orbs
   reminder: string | null; // "21:00" or null
   beta: boolean; // Beta test mode section visible
   sandbox: boolean; // Beta: use the separate test jar

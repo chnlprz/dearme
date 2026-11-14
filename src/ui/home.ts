@@ -66,7 +66,7 @@ export async function startHome(el: HTMLElement): Promise<void> {
   if (!c) return;
   const s = await getSettings();
   const jar = await activeJar();
-  mountJar(c, { style: s.style, label: jar.label, orbs: (await orbsIn(jar.id)).map(toSpec), onTapOrb: (id) => void showOrb(id),
+  mountJar(c, { style: s.style, label: jar.label, sound: s.sound, motion: s.motion, orbs: (await orbsIn(jar.id)).map(toSpec), onTapOrb: (id) => void showOrb(id),
     onTapTag: () => { hideOrb(); renameSheet(jar.label, async (l) => { await renameJar(jar.id, l); jar.label = (await db.jars.get(jar.id))!.label; setJarLabel(jar.label); }); } });
   wireSlots();
   if (s.homeToast) { const msg = s.homeToast; await updateSettings({ homeToast: undefined }); setTimeout(() => toast(msg), 300); }

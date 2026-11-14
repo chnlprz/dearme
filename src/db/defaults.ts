@@ -3,7 +3,7 @@ import { nowISO, uid } from '../lib/util';
 
 export const defaultSettings = (): Settings => ({
   id: 'settings', onboarded: false, name: '', useName: false,
-  style: 'classic', inside: 'pearl', gentleHelp: false, checkins: true, reminder: '21:00',
+  style: 'classic', inside: 'pearl', gentleHelp: false, checkins: true, sound: true, motion: true, reminder: '21:00',
   beta: false, sandbox: false, unlockAll: false, lastLevel: 1, seenUnlocks: ['jar:classic', 'in:pearl'], hard: [], blocks: [], updatedAt: nowISO(),
 });
 

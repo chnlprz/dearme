@@ -1,7 +1,7 @@
 import type { InsideId, JarStyleId } from '../db/types';
 
 export interface OrbSpec { id: string; inside: InsideId; color: number; hue?: number; x?: number; y?: number; a?: number; r?: number }
-export function mountJar(canvas: HTMLCanvasElement, opts: { style: JarStyleId; label?: string; orbs: OrbSpec[]; onTapOrb?: (id: string | null) => void; onTapTag?: () => void }): void;
+export function mountJar(canvas: HTMLCanvasElement, opts: { style: JarStyleId; label?: string; orbs: OrbSpec[]; onTapOrb?: (id: string | null) => void; onTapTag?: () => void; sound?: boolean; motion?: boolean }): void;
 export function unmountJar(): void;
 export function dropOrb(spec: OrbSpec, done?: () => void): void;
 export function shakeJar(): void;

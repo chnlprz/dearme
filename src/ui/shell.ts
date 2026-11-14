@@ -16,7 +16,7 @@ import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.7.1';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
@@ -69,6 +69,8 @@ async function settingsView(): Promise<string> {
     <button class="row" data-go="customize"><span><span class="t">Jar and what\u2019s inside</span><span class="d">${jarName} · ${insideName}</span></span>
       <span class="row-r">${fresh ? `<span class="badge-new">${fresh} NEW</span>` : ''}${svg(icon.chev, 18)}</span></button>
     <button class="row" data-go="insights"><span><span class="t">Insights</span><span class="d">Kept, made smaller and released · jar summaries</span></span>${svg(icon.chev, 18)}</button>
+    ${row('Sounds', 'Soft glass clinks when orbs touch', sw('sound', s.sound, 'Sounds'))}
+    ${row('Move with my phone', 'Tilt or shake your phone and the orbs roll', sw('motion', s.motion, 'Move with my phone'))}
   </div></div>
   <div class="group"><span class="label">Greeting</span><div class="rows">
     ${row('Use my name', s.name ? `Shows "Dear ${esc(s.name)}," instead of "Dear Me,"` : 'Add your name below first', sw('useName', s.useName, 'Use my name'))}
@@ -117,7 +119,7 @@ function wire(): void {
     void render(); window.scrollTo(0, 0);
   }));
   root.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) => b.addEventListener('click', async () => {
-    const key = b.dataset.switch as 'useName' | 'beta' | 'sandbox' | 'unlockAll' | 'gentleHelp' | 'checkins' | 'reminderOn';
+    const key = b.dataset.switch as 'useName' | 'beta' | 'sandbox' | 'unlockAll' | 'gentleHelp' | 'checkins' | 'reminderOn' | 'sound' | 'motion';
     const s = await getSettings();
     if (key === 'useName' && !s.name) { toast('Add your name first.'); return; }
     if (key === 'reminderOn') { await updateSettings({ reminder: s.reminder ? null : '21:00' }); void render(); return; }
