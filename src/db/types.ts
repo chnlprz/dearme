@@ -71,6 +71,8 @@ export interface Settings {
   lastLevel: number; // highest level already celebrated
   seenUnlocks: string[]; // 'jar:rose', 'in:heart' … (no NEW badge once seen)
   homeToast?: string; // one gentle line shown next time Home opens
+  hard: string[]; // onboarding: promises that are hard to keep (for Gentle Help)
+  blocks: string[]; // onboarding: what usually gets in the way
   updatedAt: string;
 }
 

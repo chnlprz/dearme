@@ -6,6 +6,8 @@ import { ensureSeeded } from './db/db';
 import { isInstalled, requestPersistence } from './lib/storage';
 import { mountParticles } from './ui/particles';
 import { startShell, VERSION } from './ui/shell';
+import { startOnboarding } from './ui/onboarding';
+import { getSettings } from './db/db';
 import { toast } from './ui/kit';
 
 // No pinch zoom.
@@ -17,6 +19,7 @@ const app = document.getElementById('app')!;
   await ensureSeeded();
   if (isInstalled()) void requestPersistence();
   mountParticles();
-  startShell(app); // Onboarding arrives in Phase 6.
+  if ((await getSettings()).onboarded) startShell(app);
+  else void startOnboarding(app, () => startShell(app));
   if (afterUpdate()) setTimeout(() => toast(`You're on the new Dear Me, ${VERSION}.`), 400);
 })();

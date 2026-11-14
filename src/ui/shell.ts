@@ -7,13 +7,14 @@ import { dropTestOrb, homeView, startHome } from './home';
 import { jarDetailView, shelfView, startJarDetail, startShelf } from './shelf';
 import { customizeView, startCustomize } from './customize';
 import { showLevelUp } from './levelup';
+import { startOnboarding } from './onboarding';
 import { levelInfo, newUnlocks, unlocksAt } from '../logic/unlocks';
 import { LEVEL_AT } from '../logic/levels';
 import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
@@ -78,6 +79,7 @@ async function settingsView(): Promise<string> {
     ${row('Unlock everything', 'All jars and insides, any level', sw('unlockAll', s.unlockAll, 'Unlock everything'))}
     <label class="row" for="b-style"><span class="t">Jar</span><select id="b-style" class="pick">${JAR_STYLES.map((j) => `<option value="${j.id}" ${j.id === s.style ? 'selected' : ''}>${j.name} · Level ${j.level}</option>`).join('')}</select></label>
     <label class="row" for="b-inside"><span class="t">What's inside (next orbs)</span><select id="b-inside" class="pick">${INSIDES.map((i) => `<option value="${i.id}" ${i.id === s.inside ? 'selected' : ''}>${i.name} · Level ${i.level}</option>`).join('')}</select></label>
+    <button class="row" data-beta="onb"><span class="t">Replay onboarding</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="lvl"><span class="t">Show a level-up card (Level 4)</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="drop"><span class="t">Drop a test orb</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="fill"><span class="t">Fill to 11</span>${svg(icon.chev, 18)}</button>
@@ -128,6 +130,7 @@ function wire(): void {
   });
   root.querySelectorAll<HTMLButtonElement>('[data-beta]').forEach((b) => b.addEventListener('click', async () => {
     const act = b.dataset.beta, jar = await activeJar();
+    if (act === 'onb') { unmountJar(); void startOnboarding(root, () => { tab = 'jar'; void render(); }); return; }
     if (act === 'lvl') { showLevelUp(4, () => root.dispatchEvent(new CustomEvent('dearme:customize'))); return; }
     if (act === 'drop') { tab = 'jar'; await render(); setTimeout(() => void dropTestOrb(), 350); return; }
     if (act === 'fill') {

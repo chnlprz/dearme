@@ -1,4 +1,4 @@
-# Dear Me, 0.5
+# Dear Me, 0.6
 
 Self-trust PWA by Innova Space: make small promises to yourself; every promise you keep becomes a glowing orb in a jar. 12 orbs fill a jar; sealed jars live on the Shelf exactly as they were. Standalone self-care app: **no links or shared data with Nudge!, Noggin? or Drift** (only the Innova Space passkey for sign-in, Phase 9).
 
@@ -24,7 +24,7 @@ Vite + TypeScript (no framework), Dexie over IndexedDB (`src/db`), vite-plugin-p
 - Copy: gentle, short, Taglish allowed where the Bible uses it.
 
 ## Build phases (Bible › Tech)
-1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up ✅ · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
+1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up ✅ · 6. Onboarding ✅ · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
 
 ## Beta test mode
 Settings › About › tap the version 7 times. Sandbox jar (`sandbox: true` rows never mix with real ones), unlock all, animation replays. Remove or hide before public launch.
@@ -41,3 +41,6 @@ Full jar (12) → "Seal this jar" sheet: a look back (count, dates, how many wer
 
 ## Levels and looks (`src/logic/unlocks.ts`, `src/ui/customize.ts`, `src/ui/levelup.ts`)
 Level from real kept promises (sandbox never levels up). Each level 2–6 opens one jar and one inside (+ slots at 2 and 4). Level-up card after the orb lands (Try a new look → Customize). Settings: profile with level, progress and what opens next; "Jar and what's inside" with NEW badges (`seenUnlocks`). Jar pick = glass changes now; inside pick = confirm sheet when the jar has orbs ("<Inside> from your next promise", before → after), then a one-time Home toast (`homeToast`). Locked cards show "Level N · X kept". Entering orbs are drawn after the rim (no rim line across them).
+
+## Onboarding (`src/ui/onboarding.ts`)
+Welcome (empty jar, wordmark, tagline) → How it works → What's hard (chips, saved to `settings.hard`) → What gets in the way (saved to `settings.blocks`) → Gentle Help (Allow / Not now → `settings.gentleHelp`) → Your first promise (ideas from the hard picks) → Home. Skip on steps 1–3 goes straight to Home. Beta: Replay onboarding. The Welcome "Sign in" link comes with Phase 9.
