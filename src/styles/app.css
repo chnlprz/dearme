@@ -65,7 +65,7 @@
 
 /* ---------- live jar ---------- */
 .jar-box { width: 100%; display: flex; justify-content: center; min-height: 380px; }
-.jar-box canvas { display: block; touch-action: none; cursor: grab; }
+.jar-box canvas { display: block; touch-action: manipulation; }
 .chip-beta { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: var(--r-pill); background: var(--orchid); color: var(--on-gold); font-size: 10px; letter-spacing: .08em; vertical-align: 1px; }
 .pick { background: none; border: 0; color: var(--muted); font-size: 14px; text-align: right; max-width: 55%; }
 .pick option { background: var(--surface); color: var(--ink); }

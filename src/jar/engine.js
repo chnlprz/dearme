@@ -4,7 +4,7 @@
 /* eslint-disable */
 var REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* ================= jars ================= */
-var W=384, H=490, CX=182, OY=44, BY=412, FY=400, T=8;
+var W=384, H=490, CX=182, OY=44, LT=40 /* extra room above the live jar so a lifted lid never gets cut */, BY=412, FY=400, T=8;
 var JARS={
   classic:{name:'Classic',lv:1,prof:[[92,72,2],[110,72,26],[140,114,40],[412,114,44]],tint:[255,235,255],lid:'cork',r:29},
   rose:{name:'Rosewater',lv:2,prof:[[98,66,2],[114,66,20],[150,112,60],[262,128,120],[380,112,60],[412,96,22]],tint:[255,170,205],lid:'gold',deco:'flutes',r:28},
@@ -276,7 +276,6 @@ function drawScene(c,jj,list,t,o){
   gb.addColorStop(0,rgba(tint,.22)); gb.addColorStop(.1,rgba(tint,.08)); gb.addColorStop(.5,rgba(tint,.03)); gb.addColorStop(.9,rgba(tint,.08)); gb.addColorStop(1,rgba(tint,.2));
   jarPath(c,jj,0); c.fillStyle=gb; c.fill();
   c.beginPath(); c.ellipse(CX,FY,jj.wn-T,11,0,Math.PI,Math.PI*2); c.strokeStyle=rgba(tint,.16); c.lineWidth=1.2; c.stroke();
-  if((o.lift||0)>3){ c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,Math.PI,Math.PI*2); c.strokeStyle='rgba(255,240,255,.35)'; c.lineWidth=1.6; c.stroke(); }
 
   // orbs: the ones still in the neck (falling in) are drawn after the glass rim, so no rim line crosses them
   var mouth=jj.y0+14, settled=list.filter(function(q){ return q.y-q.r*0.6>mouth; }), entering=list.filter(function(q){ return q.y-q.r*0.6<=mouth; });
@@ -308,9 +307,6 @@ function drawScene(c,jj,list,t,o){
   jarPath(c,jj,0); c.strokeStyle='rgba(255,240,255,.42)'; c.lineWidth=1.6; c.stroke();
 
   drawLid(c,jj,o.lift||0,t,o.sealed);
-  // Front lip of the glass: full only while the lid is up; with the lid on, a faint sheen at the sides only (no line across the cork or lid).
-  var open=(o.lift||0)>3;
-  if(open){ c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,Math.PI); c.strokeStyle='rgba(255,245,255,.55)'; c.lineWidth=2; c.stroke(); }
   if(entering.length) drawOrbList(c,entering,t,o,live);
 
   if(live && !REDUCED){ glint(c,CX-wAt(jj,top+20)+16,top+20,t,0); glint(c,CX+wAt(jj,260)-22,260,t,2.1); glint(c,CX-jj.w0+12,jj.y0+8,t,4.2); }
@@ -409,21 +405,31 @@ function chime(x){ if(silent||!AC) return; lastClink=AC.currentTime; var f=[1046
   tone([f,f*2,f*3.01],0.14,(x-CX)/150,0.9); setTimeout(function(){ tone([f*1.5,f*3],0.07,(x-CX)/150,0.8); },90); }
 
 /* ================= move with the phone (tilt = gravity follows, shake = orbs jump) ================= */
-var motionOn=true, motionBound=false, gAng=0, gTarget=0, lastShake=0;
-function onOrient(e){ if(e.gamma==null) return; var ang=(screen.orientation&&screen.orientation.angle)||0; if(ang) { gTarget=0; return; }
-  var g=Math.max(-0.75,Math.min(0.75,e.gamma*Math.PI/180)); if(Math.abs(g-gTarget)>0.01){ gTarget=g; if(Math.abs(gTarget-gAng)>0.02) wake(); } }
-function onMotion(e){ var a=e.acceleration; if(!a||a.x==null||!cv||liftPhase) return;
-  var m=Math.hypot(a.x,a.y||0); var n=performance.now(); if(m<9||n-lastShake<110) return; lastShake=n;
-  var k=Math.min(1.6,m/14);
-  orbs.forEach(function(o){ o.vx+=(-a.x*24+(Math.random()*2-1)*90)*k; o.vy+=((a.y||0)*24-80-Math.random()*140)*k;
+var motionOn=true, motionBound=false, gAng=0, gTarget=0, lastShake=0, gfx=0, gfy=9.8;
+// iOS reports motion with the opposite sign to Android/Chrome (upright: y = -9.8 on iPhone, +9.8 elsewhere)
+var IOS=/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1);
+function onMotion(e){ if(!cv) return;
+  // Tilt: gravity on the screen plane follows the phone (low-pass filtered), so orbs roll to the low side.
+  var g=e.accelerationIncludingGravity;
+  if(g && g.x!=null && g.y!=null){ var x=-g.x, y=g.y; if(IOS){ x=-x; y=-y; } // iOS reports the opposite sign
+    gfx+=(x-gfx)*0.25; gfy+=(y-gfy)*0.25;
+    var ang=(screen.orientation&&screen.orientation.angle)||0, t2=0;
+    if(!ang && Math.hypot(gfx,gfy)>2.5) t2=Math.atan2(gfx,gfy);
+    var lim=liftPhase?0.45:1.25; t2=Math.max(-lim,Math.min(lim,t2));
+    if(Math.abs(t2-gTarget)>0.008){ gTarget=t2; if(Math.abs(gTarget-gAng)>0.015) wake(); } }
+  // Shake: a quick jolt makes the orbs jump.
+  var a=e.acceleration; if(!a||a.x==null||liftPhase) return;
+  var m=Math.hypot(a.x,a.y||0), n=performance.now(); if(m<9||n-lastShake<110) return; lastShake=n;
+  var k=Math.min(1.6,m/14), sx=IOS?-1:1;
+  orbs.forEach(function(o){ o.vx+=(-a.x*sx*24+(Math.random()*2-1)*90)*k; o.vy+=((a.y||0)*sx*24-80-Math.random()*140)*k;
     var sp=Math.hypot(o.vx,o.vy); if(sp>900){ o.vx*=900/sp; o.vy*=900/sp; } });
   wake(); }
-function bindMotion(){ if(motionBound||!motionOn||REDUCED) return; motionBound=true; window.addEventListener('deviceorientation',onOrient); window.addEventListener('devicemotion',onMotion); }
-function unbindMotion(){ motionBound=false; gTarget=0; window.removeEventListener('deviceorientation',onOrient); window.removeEventListener('devicemotion',onMotion); }
+function bindMotion(){ if(motionBound||!motionOn||REDUCED) return; motionBound=true; window.addEventListener('devicemotion',onMotion); }
+function unbindMotion(){ motionBound=false; gTarget=0; window.removeEventListener('devicemotion',onMotion); }
 function askMotion(){ if(!motionOn||REDUCED) return;
-  var DM=window.DeviceMotionEvent, DO=window.DeviceOrientationEvent;
+  var DM=window.DeviceMotionEvent;
   if(DM && typeof DM.requestPermission==='function'){ // iOS: needs a tap first
-    DM.requestPermission().then(function(r){ if(r==='granted'){ if(DO && typeof DO.requestPermission==='function') DO.requestPermission().then(bindMotion,bindMotion); else bindMotion(); } }).catch(function(){});
+    DM.requestPermission().then(function(r){ if(r==='granted') bindMotion(); }).catch(function(){});
   } else bindMotion(); }
 var firstTapDone=false;
 function onFirstTap(){ unlockAudio(); if(!firstTapDone){ firstTapDone=true; askMotion(); } }
@@ -449,7 +455,7 @@ function frame(now){
   for(var i=particles.length-1;i>=0;i--){ var p=particles[i]; p.vy+=180*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; if(p.y>FY-2){ p.y=FY-2; p.vy*=-0.3; p.vx*=0.6; } p.life-=dt*1.4; if(p.life<=0) particles.splice(i,1); }
   glowPulse=Math.max(0,glowPulse-dt*1.2);
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.setTransform(K,0,0,K,0,0);
-  ctx.translate(0,OY);
+  ctx.translate(0,OY+LT);
   drawScene(ctx,J(),orbs,now,{live:true,tilt:tilt,lift:lift,pulse:glowPulse,particles:particles,label:label,sealed:sealed});
   if(hi){ var h=orbs.find(function(o){return o.id===hi;}); if(h){ ctx.save(); ctx.translate(CX,BY); ctx.rotate(tilt); ctx.translate(-CX,-BY);
     ctx.strokeStyle='#efb94f'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(h.x,h.y,h.r+5,0,Math.PI*2); ctx.stroke();
@@ -462,13 +468,13 @@ function frame(now){
 function resize(){
   if(!cv) return;
   DPR=Math.min(window.devicePixelRatio||1,2);
-  var box=cv.parentElement, avail=Math.min(box.clientWidth||360, 400), availH=Math.max(380, Math.min(box.clientHeight||480, 520));
-  S=Math.min(avail/W, availH/H); K=S*DPR;
-  cv.style.width=(W*S)+'px'; cv.style.height=(H*S)+'px'; cv.width=Math.round(W*K); cv.height=Math.round(H*K);
+  var box=cv.parentElement, avail=Math.min(box.clientWidth||360, 400), availH=Math.max(400, Math.min(box.clientHeight||520, 560));
+  S=Math.min(avail/W, availH/(H+LT)); K=S*DPR;
+  cv.style.width=(W*S)+'px'; cv.style.height=((H+LT)*S)+'px'; cv.width=Math.round(W*K); cv.height=Math.round((H+LT)*K);
   corkTex=makeCorkTex(); spriteCache={}; wake();
 }
 
-function toLocal(e){ var r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)/S, y:(e.clientY-r.top)/S-OY }; }
+function toLocal(e){ var r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)/S, y:(e.clientY-r.top)/S-OY-LT }; }
 function onDown(e){ dragging=true; dragMoved=false; dragX=e.clientX; wobbleT=-1; try{cv.setPointerCapture(e.pointerId);}catch(_){} wake(); }
 function onMove(e){ if(!dragging) return; if(Math.abs(e.clientX-dragX)>6) dragMoved=true; }
 function onUp(e){ if(!dragging) return; dragging=false; wake();
@@ -512,7 +518,7 @@ export function isBusy(){ return !!liftPhase; }
 /** Resting places (jar units) of every orb, to freeze a sealed jar exactly as it is. */
 export function snapshot(){ return orbs.map(function(o){ return {id:o.id,x:+o.x.toFixed(1),y:+o.y.toFixed(1),a:+o.a.toFixed(2),r:o.r}; }); }
 /** Where an orb sits on screen (CSS px, relative to the canvas), for the "tap an orb" card. */
-export function orbScreenPos(id){ var o=orbs.find(function(x){return x.id===id;}); if(!o||!cv) return null; return { x:o.x*S, y:(o.y+OY)*S, r:o.r*S }; }
+export function orbScreenPos(id){ var o=orbs.find(function(x){return x.id===id;}); if(!o||!cv) return null; return { x:o.x*S, y:(o.y+OY+LT)*S, r:o.r*S }; }
 
 /** A still jar (shelf, pickers). orbList items: {inside,color,hue,x?,y?,a?}. Without positions they are settled first. */
 export function drawStillJar(canvas, cssW, style, orbList, text){
