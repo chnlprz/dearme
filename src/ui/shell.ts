@@ -4,6 +4,9 @@ import { esc } from '../lib/util';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn } from '../logic/jar';
 import { INSIDES, JAR_STYLES, unmountJar } from '../jar/engine';
 import { safetySheet } from './safety';
+import { cloud, createPasskey, friendlyError, passkeysWork, signInWithPasskey, signOut, syncNow } from '../lib/cloud';
+import { clearReminder, needsInstall, setReminder, testReminder } from '../lib/push';
+import { openSheet } from './sheet';
 import { dropTestOrb, homeView, startHome } from './home';
 import { jarDetailView, shelfView, startJarDetail, startShelf } from './shelf';
 import { customizeView, startCustomize } from './customize';
@@ -17,7 +20,7 @@ import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.8.0';
+export const VERSION = '0.9.0';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
@@ -25,6 +28,7 @@ let openJar: string | null = null;
 let sub: 'customize' | 'insights' | null = null;
 
 export function startShell(el: HTMLElement): void {
+  (window as { __dmShell?: boolean }).__dmShell = true;
   root = el;
   root.addEventListener('dearme:rerender', () => void render());
   root.addEventListener('dearme:customize', () => { tab = 'settings'; sub = 'customize'; void render(); window.scrollTo(0, 0); });
@@ -83,14 +87,15 @@ async function settingsView(): Promise<string> {
     ${row('Gentle check-ins', 'When a promise feels heavy, one soft question', sw('checkins', s.checkins, 'Gentle check-ins'))}
   </div></div>
   <div class="group"><span class="label">Reminders</span><div class="rows">
-    ${row('Evening reminder', '\u201cYour promises are here.\u201d Notifications arrive with sign-in.', sw('reminderOn', !!s.reminder, 'Evening reminder'))}
-    ${s.reminder ? `<label class="row" for="rt"><span class="t">Time</span><input id="rt" type="time" value="${s.reminder}" class="pick" style="color:var(--ink)"></label>` : ''}
+    ${row('Evening reminder', needsInstall() ? '\u201cYour promises are here.\u201d On iPhone, add Dear Me to your Home Screen first.' : '\u201cYour promises are here.\u201d One gentle line, once a day.', sw('reminderOn', !!s.reminder, 'Evening reminder'))}
+    ${s.reminder ? `<label class="row" for="rt"><span class="t">Time</span><input id="rt" type="time" value="${s.reminder}" class="pick" style="color:var(--ink)"></label>
+    ${!needsInstall() && 'Notification' in window && Notification.permission !== 'granted' ? '<button class="row" data-act="allow-push"><span><span class="t">Allow notifications</span><span class="d">So the evening line can reach you</span></span>' + svg(icon.chev, 18) + '</button>' : ''}` : ''}
   </div></div>
   <div class="group"><span class="label">Support</span><div class="rows">
     <button class="row" data-act="help"><span><span class="t">Need someone to talk to?</span><span class="d">Free, private help lines · works offline</span></span>${svg(icon.chev, 18)}</button>
   </div></div>
   <div class="group"><span class="label">Account</span><div class="rows">
-    ${row('Sign in with passkey', 'Optional. Your jar stays on this phone until you sign in. (Coming soon)', '')}
+    ${accountRows()}
     <button class="row" data-act="export"><span><span class="t">Export my jars</span><span class="d">A file with every promise, orb and jar</span></span>${svg(icon.chev, 18)}</button>
   </div></div>
   ${s.beta ? `<div class="group"><span class="label">Beta test mode</span><div class="rows">
@@ -99,6 +104,7 @@ async function settingsView(): Promise<string> {
     <label class="row" for="b-style"><span class="t">Jar</span><select id="b-style" class="pick">${JAR_STYLES.map((j) => `<option value="${j.id}" ${j.id === s.style ? 'selected' : ''}>${j.name} · Level ${j.level}</option>`).join('')}</select></label>
     <label class="row" for="b-inside"><span class="t">What's inside (next orbs)</span><select id="b-inside" class="pick">${INSIDES.map((i) => `<option value="${i.id}" ${i.id === s.inside ? 'selected' : ''}>${i.name} · Level ${i.level}</option>`).join('')}</select></label>
     <button class="row" data-beta="checkin"><span class="t">Show a gentle check-in now</span>${svg(icon.chev, 18)}</button>
+    <button class="row" data-beta="push"><span class="t">Send the evening reminder now</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="safety"><span class="t">Show the safety sheet</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="clear"><span><span class="t">Clear the sandbox</span><span class="d">Removes every sandbox promise, orb and jar</span></span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="onb"><span class="t">Replay onboarding</span>${svg(icon.chev, 18)}</button>
@@ -127,15 +133,22 @@ function wire(): void {
     const key = b.dataset.switch as 'useName' | 'beta' | 'sandbox' | 'unlockAll' | 'gentleHelp' | 'checkins' | 'reminderOn' | 'sound' | 'motion';
     const s = await getSettings();
     if (key === 'useName' && !s.name) { toast('Add your name first.'); return; }
-    if (key === 'reminderOn') { await updateSettings({ reminder: s.reminder ? null : '21:00' }); void render(); return; }
+    if (key === 'reminderOn') {
+      if (s.reminder) { await updateSettings({ reminder: null }); void clearReminder(); void render(); return; }
+      await updateSettings({ reminder: '21:00' }); void render();
+      const why = await setReminder('21:00'); if (why) toast(why); else toast('Every evening at 9:00 PM.');
+      return;
+    }
     await updateSettings({ [key]: !s[key] } as never);
     void render();
   }));
   root.querySelector('[data-go="customize"]')?.addEventListener('click', () => { sub = 'customize'; void render(); window.scrollTo(0, 0); });
   root.querySelector('[data-go="insights"]')?.addEventListener('click', () => { sub = 'insights'; void render(); window.scrollTo(0, 0); });
-  root.querySelector<HTMLInputElement>('#rt')?.addEventListener('change', async (e) => { const v = (e.target as HTMLInputElement).value; if (v) await updateSettings({ reminder: v }); });
+  root.querySelector<HTMLInputElement>('#rt')?.addEventListener('change', async (e) => { const v = (e.target as HTMLInputElement).value; if (v) { await updateSettings({ reminder: v }); const why = await setReminder(v); if (why) toast(why); } });
   root.querySelector('[data-act="export"]')?.addEventListener('click', () => void exportAll());
+  root.querySelector('[data-act="allow-push"]')?.addEventListener('click', async () => { const s = await getSettings(); const why = await setReminder(s.reminder || '21:00'); toast(why ?? 'Reminders are on.'); void render(); });
   root.querySelector('[data-act="help"]')?.addEventListener('click', () => void safetySheet('help'));
+  root.querySelectorAll<HTMLButtonElement>('[data-acct]').forEach((b) => b.addEventListener('click', () => void account(b.dataset.acct!)));
   root.querySelector<HTMLInputElement>('#nm')?.addEventListener('change', async (e) => {
     const name = (e.target as HTMLInputElement).value.trim().slice(0, 24);
     await updateSettings({ name, ...(name ? {} : { useName: false }) });
@@ -160,6 +173,7 @@ function wire(): void {
     const act = b.dataset.beta, jar = await activeJar();
     if (act === 'checkin') { const s = await getSettings(); if (!(await db.promises.filter((p) => p.status === 'active' && !!p.sandbox === s.sandbox).count())) { toast('Make a promise first.'); return; } localStorage.setItem('dearme-force-checkin', '1'); tab = 'jar'; void render(); return; }
     if (act === 'safety') { void safetySheet('crisis'); return; }
+    if (act === 'push') { toast(await testReminder()); return; }
     if (act === 'clear') {
       const sj = await db.jars.filter((j) => !!j.sandbox).primaryKeys();
       await db.transaction('rw', db.jars, db.orbs, db.promises, async () => {
@@ -183,4 +197,40 @@ function wire(): void {
       toast(`${ids.length} test orbs taken out.`);
     }
   }));
+}
+
+/* ---------- Account: one Innova Space passkey; Dear Me's data stays Dear Me's ---------- */
+function accountRows(): string {
+  const c = cloud.get();
+  if (!c.signedIn) return `<button class="row" data-acct="start"><span><span class="t">Sign in with passkey</span><span class="d">Optional. Keeps your jars safe and on all your devices.</span></span>${svg(icon.chev, 18)}</button>`;
+  const last = c.lastSync ? new Date(c.lastSync).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'not yet';
+  return `<button class="row" data-acct="sync"><span><span class="t">Signed in</span><span class="d">${c.error ? esc(c.error) : `Synced ${esc(last)} · tap to sync now`}</span></span>${svg(icon.chev, 18)}</button>
+    <button class="row" data-acct="add"><span><span class="t">Add a passkey on this device</span><span class="d">For a phone or laptop outside your iCloud Keychain</span></span>${svg(icon.chev, 18)}</button>
+    <button class="row" data-acct="out"><span><span class="t">Sign out</span><span class="d">Your jars stay on this phone</span></span>${svg(icon.chev, 18)}</button>`;
+}
+
+export function signInSheet(after?: () => void): void {
+  openSheet(`<p class="serif sheet-title">Keep your jars safe</p>
+<p class="sheet-copy">Sign in with a passkey: Face ID, Touch ID or your phone\u2019s lock. No password, no email. One passkey works in every Innova Space app, but your jars, promises and words stay only in Dear Me.</p>
+<p class="sheet-copy">Everything on this phone is kept and joined with your account. Nothing is replaced.</p>
+${passkeysWork() ? `<button class="btn" id="pk-new">Create a passkey</button><button class="btn-secondary" id="pk-in">I already have one · Sign in</button>` : '<p class="sheet-copy">This browser can\u2019t use passkeys. Try Safari or Chrome.</p>'}
+<button class="btn-text" id="pk-later" style="align-self:center">Not now</button>`, (el, close) => {
+    el.querySelector('#pk-later')!.addEventListener('click', close);
+    const go = (fn: () => Promise<void>, msg: string) => async () => {
+      try { await fn(); close(); toast(msg); await syncNow(); after?.(); void render(); }
+      catch (e) { toast(friendlyError(e)); }
+    };
+    el.querySelector('#pk-new')?.addEventListener('click', go(async () => createPasskey((await getSettings()).name), 'Signed in. Your jars are safe.'));
+    el.querySelector('#pk-in')?.addEventListener('click', go(signInWithPasskey, 'Signed in. Your jars are joined.'));
+  }, 'Sign in');
+}
+
+async function account(act: string): Promise<void> {
+  if (act === 'start') return signInSheet();
+  try {
+    if (act === 'sync') { await syncNow(); toast(cloud.get().error ?? 'Synced'); }
+    if (act === 'add') { await createPasskey((await getSettings()).name); toast('Passkey added on this device.'); }
+    if (act === 'out') { await signOut(); toast('Signed out. Your jars stay on this phone.'); }
+  } catch (e) { toast(friendlyError(e)); }
+  void render();
 }

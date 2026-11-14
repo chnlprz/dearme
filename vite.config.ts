@@ -25,6 +25,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ['push-sw.js'], // evening reminders (Web Push)
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         globIgnores: ['**/og-image.png'],
       },

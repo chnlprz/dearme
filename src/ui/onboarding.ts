@@ -5,6 +5,8 @@ import { drawStillJar } from '../jar/engine';
 import { makePromise, MAX_LEN } from '../logic/promises';
 import { safeToSave, wireSoftNote } from './safety';
 import { esc } from '../lib/util';
+import { friendlyError, signInWithPasskey, syncNow } from '../lib/cloud';
+import { toast } from './kit';
 import { showParticles } from './particles';
 
 const HARD: [string, string][] = [
@@ -42,9 +44,16 @@ const on = (sel: string, fn: () => void) => root.querySelector(sel)?.addEventLis
 function welcome(): void {
   root.innerHTML = `<main class="onb welcome"><div class="onb-body center"><canvas data-jar aria-hidden="true"></canvas>
 <h1 class="wordmark" style="font-size:52px">Dear Me<span class="c">,</span></h1><p class="muted lead">A jar of kept promises to yourself.</p></div>
-<div class="onb-cta"><button class="btn" data-next>Begin</button></div></main>`;
+<div class="onb-cta"><button class="btn" data-next>Begin</button><button class="btn-text" data-signin>I have an Innova Space passkey · Sign in</button></div></main>`;
   drawStillJar(root.querySelector('[data-jar]')!, 210, 'classic', []);
   on('[data-next]', how);
+  on('[data-signin]', async () => {
+    try {
+      await signInWithPasskey(); await syncNow();
+      if ((await getSettings()).onboarded) { toast('Welcome back. Your jars are here.'); return done(); }
+      toast('Signed in. Let\u2019s set up your jar.'); how();
+    } catch (e) { toast(friendlyError(e)); }
+  });
 }
 
 function how(): void {

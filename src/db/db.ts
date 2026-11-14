@@ -49,5 +49,6 @@ export async function updateSettings(patch: Partial<Omit<Settings, 'id'>>): Prom
 
 /** The jar being filled (real or sandbox). */
 export async function currentJar(sandbox = false): Promise<Jar | undefined> {
-  return db.jars.filter((j) => !j.sealedAt && !!j.sandbox === sandbox).first();
+  // the oldest unsealed one: after a merge, a full jar waits to be sealed before the next is filled
+  return (await db.jars.filter((j) => !j.sealedAt && !!j.sandbox === sandbox).toArray()).sort((a, b) => a.startedAt.localeCompare(b.startedAt))[0];
 }

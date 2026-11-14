@@ -1,6 +1,6 @@
 {
   // Cloudflare Worker: static assets from dist/ plus a small API under /api.
-  // Phase 1: assets + /api/health. Passkeys and sync arrive in Phase 9, Gentle Help (Claude API) in Phase 10.
+  // Phase 9: passkeys, sync and evening reminders (Web Push). Gentle Help (Claude API) arrives in Phase 10.
   // Served at dearme.innovaspace.app (custom domain).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "dearme",
@@ -15,5 +15,11 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  // Shared Innova Space accounts live in Nudge!'s D1 database; Dear Me keeps its rows only in its own dm_* tables there.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "nudge", "database_id": "2a303c20-837b-41ca-a7d1-c759772d1aa4" }
+  ],
+  // Every 5 minutes: send the evening reminder to whoever's chosen time just arrived (in their time zone).
+  "triggers": { "crons": ["*/5 * * * *"] },
   "vars": { "RP_ID": "innovaspace.app" }
 }

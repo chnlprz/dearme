@@ -1,6 +1,6 @@
 {
   "name": "dearme",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Dear Me, · A jar of kept promises to yourself. A self-trust PWA by Innova Space.",
   "scripts": {
     "dev": "vite",
@@ -8,7 +8,10 @@
     "preview": "vite preview",
     "deploy": "npm run build && wrangler deploy"
   },
-  "repository": { "type": "git", "url": "git+https://github.com/chnlprz/dearme.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chnlprz/dearme.git"
+  },
   "author": "Innova Space",
   "license": "UNLICENSED",
   "private": true,
@@ -21,6 +24,8 @@
     "wrangler": "^4.160.1"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.1.0",
     "dexie": "^4.4.7"
   }
 }
