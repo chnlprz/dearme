@@ -375,7 +375,7 @@ function drawTag(c,jj,t,text,live){
   var tw=text?c.measureText(text).width:0; if(tw>134){ fs=Math.max(10,13*134/tw); c.font='italic 500 '+fs.toFixed(1)+'px Fraunces, Georgia, serif'; tw=c.measureText(text).width; }
   var w=text?Math.max(70,tw+18):64;
   // tilt the tag down until its far corner stays inside the canvas
-  var ang=0.42; var lim=W-8-(live?40:0); // live jars lean with the phone, so leave room
+  var ang=0.42; var lim=W-8;
   while(ang<1.45 && tx+Math.cos(ang)*w+Math.sin(ang)*h/2>lim) ang+=0.03;
   tagBox={x:tx,y:ty,a:ang,w:w,h:h};
   c.strokeStyle='rgba(222,190,160,.85)'; c.lineWidth=1.3; c.beginPath(); c.moveTo(ax,ay); c.quadraticCurveTo(ax+24,ay+10,tx-8*Math.cos(ang),ty-14); c.stroke();
@@ -465,7 +465,7 @@ function frame(now){
   glowPulse=Math.max(0,glowPulse-dt*1.2);
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.setTransform(K,0,0,K,0,0);
   ctx.translate(0,OY+LT);
-  var vt=tilt+Math.max(-0.17,Math.min(0.17,gAng*0.3)); // the jar leans with the phone too
+  var vt=tilt; // the jar stays upright; only what's inside rolls with the phone
   drawScene(ctx,J(),orbs,now,{live:true,tilt:vt,lift:lift,pulse:glowPulse,particles:particles,label:label,sealed:sealed});
   if(hi){ var h=orbs.find(function(o){return o.id===hi;}); if(h){ ctx.save(); ctx.translate(CX,BY); ctx.rotate(vt); ctx.translate(-CX,-BY);
     ctx.strokeStyle='#efb94f'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(h.x,h.y,h.r+5,0,Math.PI*2); ctx.stroke();

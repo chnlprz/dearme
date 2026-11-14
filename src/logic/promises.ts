@@ -3,6 +3,7 @@ import { db, getSettings } from '../db/db';
 import type { DMPromise, Orb, StoryStep } from '../db/types';
 import { nowISO, uid } from '../lib/util';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn } from './jar';
+import { assertSafe } from './safety';
 
 export const MAX_LEN = 120;
 
@@ -16,6 +17,7 @@ export async function activePromises(): Promise<DMPromise[]> {
 const step = (kind: StoryStep['kind'], extra: Partial<StoryStep> = {}): StoryStep => ({ at: nowISO(), kind, ...extra });
 
 export async function makePromise(text: string): Promise<DMPromise> {
+  assertSafe(text);
   const s = await getSettings();
   const p: DMPromise = {
     id: uid(), text: text.trim().slice(0, MAX_LEN), status: 'active', createdAt: nowISO(), updatedAt: nowISO(),
@@ -33,12 +35,10 @@ async function change(id: string, fn: (p: DMPromise) => void): Promise<DMPromise
   return p;
 }
 
-export const editPromise = (id: string, text: string) =>
-  change(id, (p) => { p.text = text.trim().slice(0, MAX_LEN); p.story.push(step('edited', { text: p.text })); });
+export const editPromise = (id: string, text: string) => (assertSafe(text), change(id, (p) => { p.text = text.trim().slice(0, MAX_LEN); p.story.push(step('edited', { text: p.text })); }));
 
 /** Make it smaller: keeps the original wording, so the story shows the turn that helped. */
-export const refinePromise = (id: string, text: string) =>
-  change(id, (p) => { if (!p.refinedFrom) p.refinedFrom = p.text; p.text = text.trim().slice(0, MAX_LEN); p.story.push(step('refined', { text: p.text })); });
+export const refinePromise = (id: string, text: string) => (assertSafe(text), change(id, (p) => { if (!p.refinedFrom) p.refinedFrom = p.text; p.text = text.trim().slice(0, MAX_LEN); p.story.push(step('refined', { text: p.text })); }));
 
 export const releasePromise = (id: string, note?: string) =>
   change(id, (p) => { p.status = 'released'; p.releasedAt = nowISO(); p.story.push(step('released', note ? { note } : {})); });

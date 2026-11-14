@@ -12,6 +12,7 @@ import { db, updateSettings } from '../db/db';
 import { pendingLevelUp } from '../logic/unlocks';
 import { BLOCK_HELP, promiseNeedingCheckin, setAside } from '../logic/checkins';
 import { showLevelUp } from './levelup';
+import { safeToSave, wireSoftNote } from './safety';
 import { activePromises, editPromise, jarIsFull, keepPromise, makePromise, MAX_LEN, refinePromise, releasePromise } from '../logic/promises';
 import { esc, headerDate, reducedMotion } from '../lib/util';
 import { icon, svg, toast } from './kit';
@@ -177,12 +178,12 @@ ${editing ? '' : `<span class="field-label">Small is good. Ideas:</span><div cla
 <button class="btn" id="psave" ${editing ? '' : 'disabled'}>${editing ? 'Save' : 'Put it on my jar'}</button>`, (el, close) => {
     const ta = el.querySelector<HTMLTextAreaElement>('#ptext')!, save = el.querySelector<HTMLButtonElement>('#psave')!;
     const sync = () => { save.disabled = !ta.value.trim(); };
-    ta.addEventListener('input', sync);
+    ta.addEventListener('input', sync); wireSoftNote(ta);
     el.querySelectorAll<HTMLButtonElement>('[data-idea]').forEach((c) => c.addEventListener('click', () => { ta.value = c.dataset.idea!; sync(); ta.focus(); }));
     save.addEventListener('click', async () => {
       const text = ta.value.trim(); if (!text) return;
-      if (editing) await editPromise(p!.id, text); else { await makePromise(text); setMirror('A new promise. Small and doable.'); }
-      close(); void refreshSlots();
+      const save = async () => { if (editing) await editPromise(p!.id, text); else { await makePromise(text); setMirror('A new promise. Small and doable.'); } close(); void refreshSlots(); };
+      if (safeToSave(text, () => void save())) await save();
     });
   }, editing ? 'Edit promise' : 'Make a promise');
 }
@@ -196,10 +197,11 @@ function refineSheet(p: DMPromise): void {
 <p class="sheet-copy" style="margin-top:-4px">Keeping it still earns a full orb.</p>
 <button class="btn" id="rsave">Use this version</button>`, (el, close) => {
     const ta = el.querySelector<HTMLTextAreaElement>('#rtext')!;
-    ta.select();
+    ta.select(); wireSoftNote(ta);
     el.querySelector('#rsave')!.addEventListener('click', async () => {
       const text = ta.value.trim(); if (!text || text === p.text) { close(); return; }
-      await refinePromise(p.id, text); close(); setMirror('Smaller is still a promise.'); void refreshSlots();
+      const save = async () => { await refinePromise(p.id, text); close(); setMirror('Smaller is still a promise.'); void refreshSlots(); };
+      if (safeToSave(text, () => void save())) await save();
     });
   }, 'Refine promise');
 }

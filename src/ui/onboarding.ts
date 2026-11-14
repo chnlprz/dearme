@@ -3,6 +3,7 @@
 import { getSettings, updateSettings } from '../db/db';
 import { drawStillJar } from '../jar/engine';
 import { makePromise, MAX_LEN } from '../logic/promises';
+import { safeToSave, wireSoftNote } from './safety';
 import { esc } from '../lib/util';
 import { showParticles } from './particles';
 
@@ -96,9 +97,9 @@ function firstStep(): void {
 <div class="chips">${list.map((i) => `<button class="chip" data-i="${esc(i)}">${esc(i)}</button>`).join('')}</div>`, 'Put it on my jar', { skip: false, secondary: 'I’ll do it later' });
   const ta = root.querySelector<HTMLTextAreaElement>('#p1')!, go = root.querySelector<HTMLButtonElement>('[data-next]')!;
   const sync = () => { go.disabled = !ta.value.trim(); }; sync();
-  ta.addEventListener('input', sync);
+  ta.addEventListener('input', sync); wireSoftNote(ta);
   root.querySelectorAll<HTMLButtonElement>('[data-i]').forEach((c) => c.addEventListener('click', () => { ta.value = c.dataset.i!; sync(); }));
-  on('[data-next]', async () => { if (!ta.value.trim()) return; await makePromise(ta.value); await finish(); });
+  on('[data-next]', async () => { const t = ta.value.trim(); if (!t) return; const save = async () => { await makePromise(t); await finish(); }; if (safeToSave(t, () => void save())) await save(); });
   on('[data-second]', () => void finish());
 }
 

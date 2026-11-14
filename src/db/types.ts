@@ -77,6 +77,7 @@ export interface Settings {
   homeToast?: string; // one gentle line shown next time Home opens
   hard: string[]; // onboarding: promises that are hard to keep (for Gentle Help)
   blocks: string[]; // onboarding: what usually gets in the way
+  country?: string; // hotline country picked by the user (else guessed)
   updatedAt: string;
 }
 

@@ -3,6 +3,7 @@ import { db, getSettings, updateSettings } from '../db/db';
 import { esc } from '../lib/util';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn } from '../logic/jar';
 import { INSIDES, JAR_STYLES, unmountJar } from '../jar/engine';
+import { safetySheet } from './safety';
 import { dropTestOrb, homeView, startHome } from './home';
 import { jarDetailView, shelfView, startJarDetail, startShelf } from './shelf';
 import { customizeView, startCustomize } from './customize';
@@ -16,7 +17,7 @@ import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.7.4';
+export const VERSION = '0.8.0';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
@@ -85,6 +86,9 @@ async function settingsView(): Promise<string> {
     ${row('Evening reminder', '\u201cYour promises are here.\u201d Notifications arrive with sign-in.', sw('reminderOn', !!s.reminder, 'Evening reminder'))}
     ${s.reminder ? `<label class="row" for="rt"><span class="t">Time</span><input id="rt" type="time" value="${s.reminder}" class="pick" style="color:var(--ink)"></label>` : ''}
   </div></div>
+  <div class="group"><span class="label">Support</span><div class="rows">
+    <button class="row" data-act="help"><span><span class="t">Need someone to talk to?</span><span class="d">Free, private help lines · works offline</span></span>${svg(icon.chev, 18)}</button>
+  </div></div>
   <div class="group"><span class="label">Account</span><div class="rows">
     ${row('Sign in with passkey', 'Optional. Your jar stays on this phone until you sign in. (Coming soon)', '')}
     <button class="row" data-act="export"><span><span class="t">Export my jars</span><span class="d">A file with every promise, orb and jar</span></span>${svg(icon.chev, 18)}</button>
@@ -95,6 +99,7 @@ async function settingsView(): Promise<string> {
     <label class="row" for="b-style"><span class="t">Jar</span><select id="b-style" class="pick">${JAR_STYLES.map((j) => `<option value="${j.id}" ${j.id === s.style ? 'selected' : ''}>${j.name} · Level ${j.level}</option>`).join('')}</select></label>
     <label class="row" for="b-inside"><span class="t">What's inside (next orbs)</span><select id="b-inside" class="pick">${INSIDES.map((i) => `<option value="${i.id}" ${i.id === s.inside ? 'selected' : ''}>${i.name} · Level ${i.level}</option>`).join('')}</select></label>
     <button class="row" data-beta="checkin"><span class="t">Show a gentle check-in now</span>${svg(icon.chev, 18)}</button>
+    <button class="row" data-beta="safety"><span class="t">Show the safety sheet</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="clear"><span><span class="t">Clear the sandbox</span><span class="d">Removes every sandbox promise, orb and jar</span></span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="onb"><span class="t">Replay onboarding</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="lvl"><span class="t">Show a level-up card (Level 4)</span>${svg(icon.chev, 18)}</button>
@@ -130,6 +135,7 @@ function wire(): void {
   root.querySelector('[data-go="insights"]')?.addEventListener('click', () => { sub = 'insights'; void render(); window.scrollTo(0, 0); });
   root.querySelector<HTMLInputElement>('#rt')?.addEventListener('change', async (e) => { const v = (e.target as HTMLInputElement).value; if (v) await updateSettings({ reminder: v }); });
   root.querySelector('[data-act="export"]')?.addEventListener('click', () => void exportAll());
+  root.querySelector('[data-act="help"]')?.addEventListener('click', () => void safetySheet('help'));
   root.querySelector<HTMLInputElement>('#nm')?.addEventListener('change', async (e) => {
     const name = (e.target as HTMLInputElement).value.trim().slice(0, 24);
     await updateSettings({ name, ...(name ? {} : { useName: false }) });
@@ -153,6 +159,7 @@ function wire(): void {
   root.querySelectorAll<HTMLButtonElement>('[data-beta]').forEach((b) => b.addEventListener('click', async () => {
     const act = b.dataset.beta, jar = await activeJar();
     if (act === 'checkin') { const s = await getSettings(); if (!(await db.promises.filter((p) => p.status === 'active' && !!p.sandbox === s.sandbox).count())) { toast('Make a promise first.'); return; } localStorage.setItem('dearme-force-checkin', '1'); tab = 'jar'; void render(); return; }
+    if (act === 'safety') { void safetySheet('crisis'); return; }
     if (act === 'clear') {
       const sj = await db.jars.filter((j) => !!j.sandbox).primaryKeys();
       await db.transaction('rw', db.jars, db.orbs, db.promises, async () => {
