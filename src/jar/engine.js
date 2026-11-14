@@ -8,7 +8,7 @@ var W=384, H=490, CX=182, OY=44, BY=412, FY=400, T=8;
 var JARS={
   classic:{name:'Classic',lv:1,prof:[[92,72,2],[110,72,26],[140,114,40],[412,114,44]],tint:[255,235,255],lid:'cork',r:29},
   rose:{name:'Rosewater',lv:2,prof:[[98,66,2],[114,66,20],[150,112,60],[262,128,120],[380,112,60],[412,96,22]],tint:[255,170,205],lid:'gold',deco:'flutes',r:28},
-  moon:{name:'Moonlight',lv:3,prof:[[112,58,2],[126,58,10],[144,92,26],[172,120,50],[230,132,70],[300,128,70],[350,108,50],[388,78,36],[412,52,16]],tint:[185,205,255],lid:'silver',r:27},
+  moon:{name:'Moonlight',lv:3,prof:[[112,58,2],[134,58,10],[139,58,40],[155,86,40],[180,113,40],[210,132,40],[245,143,40],[273,146,40],[305,142,40],[340,130,40],[370,109,40],[395,80,40],[412,44,8]],tint:[185,205,255],lid:'silver',r:27},
   pearl:{name:'Pearl',lv:4,prof:[[84,60,2],[100,60,16],[126,92,24],[412,92,26]],tint:[255,238,222],lid:'ceramic',r:25},
   stardust:{name:'Stardust',lv:5,prof:[[90,44,2],[120,44,4],[152,112,6],[382,112,6],[412,92,6]],tint:[205,165,255],lid:'gem',deco:'facets',r:27},
   frost:{name:'Frost',lv:6,prof:[[100,92,2],[114,92,6],[130,118,10],[412,118,20]],tint:[170,212,255],lid:'glass',deco:'frost',r:27}
@@ -16,7 +16,17 @@ var JARS={
 Object.keys(JARS).forEach(function(k){ var J=JARS[k]; J.id=k; J.y0=J.prof[0][0]; J.w0=J.prof[0][1]; J.wn=J.prof[J.prof.length-1][1]; J.lidB=J.y0+14; });
 function wAt(J,y){ var p=J.prof; if(y<=p[0][0]) return p[0][1]; for(var i=1;i<p.length;i++){ if(y<=p[i][0]){ var a=p[i-1],b=p[i],t=(y-a[0])/(b[0]-a[0]); return a[1]+(b[1]-a[1])*t; } } return p[p.length-1][1]; }
 function hw(J,y){ return wAt(J,Math.min(BY,y))-T-1.5; }
+// Smooth jars (Classic, Rosewater, Moonlight, Pearl) are drawn as one spline: a straight neck that flows into the
+// shoulders with no kink, then rounded bottom corners. Faceted jars (Stardust, Frost) keep their crisp corners.
+var SPLINES={
+  classic:{pts:[[92,72],[110,72],[140,104],[162,114],[412,114]],bot:44,vEnd:true},
+  rose:{pts:[[98,66],[114,66],[146,102],[192,123],[262,128],[338,121],[412,96]],bot:22,vEnd:false},
+  pearl:{pts:[[84,60],[100,60],[120,84],[138,92],[412,92]],bot:26,vEnd:true}
+};
 function jarPath(c,J,inset){
+  if(J.id==='moon') return globePath(c,inset);
+  var sp=SPLINES[J.id];
+  if(sp) return splinePath(c,sp,inset);
   var p=J.prof, L=[], R=[];
   for(var i=0;i<p.length;i++){ var y=p[i][0]+(i===p.length-1?-inset*0.6:0), w=p[i][1]-inset; L.push([CX-w,y,p[i][2]]); R.unshift([CX+w,y,p[i][2]]); }
   var v=L.concat(R), n=v.length;
@@ -25,6 +35,38 @@ function jarPath(c,J,inset){
     var l1=Math.hypot(a[0]-pr[0],a[1]-pr[1]), l2=Math.hypot(b[0]-a[0],b[1]-a[1]);
     var rr=Math.max(0.1,Math.min(a[2],l1/2,l2/2)); c.arcTo(a[0],a[1],b[0],b[1],rr); }
   c.closePath();
+}
+function globePath(c,inset){
+  var R=146-inset, cy=273, nw=58-inset, y0=112, by=BY-inset*0.6;
+  var a0=Math.asin(nw/R), yn=cy-R*Math.cos(a0); // where the neck meets the bowl
+  var ab=Math.acos(Math.min(0.995,(by-cy)/R)); // flat base
+  c.beginPath(); c.moveTo(CX,y0); c.lineTo(CX-nw,y0); c.lineTo(CX-nw,yn-6);
+  c.quadraticCurveTo(CX-nw,yn,CX-R*Math.sin(a0+0.12),cy-R*Math.cos(a0+0.12));
+  c.arc(CX,cy,R,-Math.PI/2-(a0+0.12),-Math.PI/2-(Math.PI-ab),true);
+  c.lineTo(CX+R*Math.sin(ab),by);
+  c.arc(CX,cy,R,-Math.PI/2+(Math.PI-ab),-Math.PI/2+(a0+0.12),true);
+  c.quadraticCurveTo(CX+nw,yn,CX+nw,yn-6); c.lineTo(CX+nw,y0); c.closePath();
+}
+function splinePath(c,sp,inset){
+  var by=BY-inset*0.6, r=Math.max(2,sp.bot-inset*0.6);
+  var P=sp.pts.map(function(q){ return [q[1]-inset,q[0]]; }); // [w, y]
+  var n=P.length; P[n-1]=[P[n-1][0],by-r];
+  var T=[]; // tangents (dw, dy)
+  for(var i=0;i<n;i++){
+    if(i===0) T.push([0,P[1][1]-P[0][1]]);
+    else if(i===1) T.push([0,Math.hypot(P[2][0]-P[1][0],P[2][1]-P[1][1])]); // the neck meets the shoulder vertically: no kink
+    else if(i===n-1) T.push(sp.vEnd?[0,Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1])]:[P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]]);
+    else T.push([(P[i+1][0]-P[i-1][0])/2,(P[i+1][1]-P[i-1][1])/2]);
+  }
+  var segs=[];
+  for(var k=1;k<n-1;k++) segs.push([P[k][0]+T[k][0]/3,P[k][1]+T[k][1]/3, P[k+1][0]-T[k+1][0]/3,P[k+1][1]-T[k+1][1]/3, P[k+1][0],P[k+1][1]]);
+  var wl=P[n-1][0];
+  c.beginPath(); c.moveTo(CX,P[0][1]); c.lineTo(CX-P[0][0],P[0][1]); c.lineTo(CX-P[1][0],P[1][1]);
+  segs.forEach(function(s){ c.bezierCurveTo(CX-s[0],s[1],CX-s[2],s[3],CX-s[4],s[5]); });
+  c.arcTo(CX-wl,by,CX,by,r); c.arcTo(CX+wl,by,CX+wl,by-r,r);
+  for(var m=segs.length-1;m>=0;m--){ var s=segs[m], end=m===0?P[1]:[segs[m-1][4],segs[m-1][5]];
+    c.bezierCurveTo(CX+s[2],s[3],CX+s[0],s[1],CX+end[0],end[1]); }
+  c.lineTo(CX+P[0][0],P[0][1]); c.closePath();
 }
 
 /* ================= orb themes ================= */
@@ -247,7 +289,7 @@ function drawScene(c,jj,list,t,o){
 
   drawLid(c,jj,o.lift||0,t,o.sealed);
   c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,Math.PI); c.strokeStyle='rgba(255,245,255,.6)'; c.lineWidth=2.4; c.stroke();
-  var lip=c.createLinearGradient(0,jj.y0,0,jj.y0+16); lip.addColorStop(0,'rgba(255,240,255,.18)'); lip.addColorStop(1,'rgba(255,240,255,0)'); c.fillStyle=lip; c.fillRect(CX-jj.w0,jj.y0,jj.w0*2,16);
+  c.save(); jarPath(c,jj,0); c.clip(); var lip=c.createLinearGradient(0,jj.y0,0,jj.y0+14); lip.addColorStop(0,'rgba(255,240,255,.12)'); lip.addColorStop(1,'rgba(255,240,255,0)'); c.fillStyle=lip; c.fillRect(CX-jj.w0,jj.y0+2,jj.w0*2,14); c.restore();
   if(live && !REDUCED){ glint(c,CX-wAt(jj,top+20)+16,top+20,t,0); glint(c,CX+wAt(jj,260)-22,260,t,2.1); glint(c,CX-jj.w0+12,jj.y0+8,t,4.2); }
   drawTag(c,jj,t,o.label,live);
   c.restore();
@@ -278,7 +320,7 @@ function drawLid(c,jj,lift,t,sealedNow){
     else { c.beginPath(); c.ellipse(CX,bandT,rx,9,0,0,Math.PI*2); c.fillStyle=metal(c,CX-rx,CX+rx,['#8a8ea0','#eef0f8','#ffffff','#b9bdcc','#777b8c']); c.fill();
       c.fillStyle=metal(c,CX-10,CX+10,cols); c.beginPath(); c.ellipse(CX,bandT-6,10,6,0,0,Math.PI*2); c.fill(); }
     c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=1; c.beginPath(); c.moveTo(CX-rx+4,bandT+4); c.lineTo(CX+rx-4,bandT+4); c.stroke();
-    if(sealedNow){ c.fillStyle='rgba(255,220,150,'+(0.10+0.08*Math.sin(t/700))+')'; c.fillRect(CX-rx,bandT-40,rx*2,56); }
+    if(sealedNow){ var sg=c.createRadialGradient(CX,bandT-8,4,CX,bandT-8,rx+18); sg.addColorStop(0,'rgba(255,220,150,'+(0.22+0.08*Math.sin(t/700))+')'); sg.addColorStop(1,'rgba(255,220,150,0)'); c.fillStyle=sg; c.beginPath(); c.ellipse(CX,bandT-8,rx+18,34,0,0,Math.PI*2); c.fill(); }
   } else if(jj.lid==='ceramic'){
     var rx2=w0+6, b2=y0-8;
     var cg=metal(c,CX-rx2,CX+rx2,['#b9a691','#f6ebdd','#fffaf2','#e2d2bf','#a8937c']);
@@ -407,10 +449,10 @@ export function drawStillJar(canvas, cssW, style, orbList, text){
   canvas.style.width=cssW+'px'; canvas.style.height=cssH+'px'; canvas.width=Math.round(cssW*dpr); canvas.height=Math.round(cssH*dpr);
   var list=orbList.map(function(s){ var o={x:s.x,y:s.y,vx:0,vy:0,r:s.r||jj.r,th:s.inside,ci:s.color,a:s.a||0,base:0,hue:s.hue||1,tw:0,fresh:false,id:s.id}; return o; });
   if(list.some(function(o){return o.x==null;})){ var sJ=jarId, sO=orbs; jarId=jj.id; settle(list); list=orbs; jarId=sJ; orbs=sO; }
-  var c=canvas.getContext('2d'), sK=K; K=sc*dpr; var sCache=spriteCache; spriteCache={};
+  var c=canvas.getContext('2d'), sK=K; K=sc*dpr; var sCache=spriteCache; spriteCache={}; var sCork=corkTex; corkTex=makeCorkTex();
   c.setTransform(sc*dpr,0,0,sc*dpr,0,0); c.translate(0,OY);
   drawScene(c,jj,list,0,{live:false,label:text||'',sealed:!!text});
-  K=sK; spriteCache=sCache;
+  K=sK; spriteCache=sCache; corkTex=sCork;
 }
 /** One orb on its own (pickers). */
 export function drawOrbPreview(canvas, inside, size){
