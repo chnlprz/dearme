@@ -16,4 +16,4 @@ export function drawOrbPreview(canvas: HTMLCanvasElement, inside: InsideId, size
 export const JAR_STYLES: { id: JarStyleId; name: string; level: number }[];
 export const INSIDES: { id: InsideId; name: string; level: number; colors: number }[];
 export function orbColors(inside: InsideId, color: number): { light: string; base: string; deep: string; glow: string };
-export function motionInfo(): { on: boolean; bound: boolean; events: number; ios: boolean; inv: boolean; tilt: number; y: number };
+export function motionInfo(): { on: boolean; bound: boolean; events: number; orient: number; grav: boolean; ios: boolean; inv: boolean; tilt: number; y: number };

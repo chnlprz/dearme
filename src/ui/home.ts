@@ -72,7 +72,7 @@ export async function startHome(el: HTMLElement): Promise<void> {
   wireSlots();
   const dbg = root.querySelector<HTMLElement>('#mdbg');
   if (dbg) { const tick = (): void => { if (!dbg.isConnected) return; const m = motionInfo();
-    dbg.textContent = !m.on ? 'motion: off in Settings' : !m.bound ? 'motion: tap the screen once to allow' : `motion: ${m.events} readings · tilt ${m.tilt}° · y ${m.y}${m.inv ? ' (flipped)' : ''}`;
+    dbg.textContent = !m.on ? 'motion: off in Settings' : !m.bound ? 'motion: tap the screen once to allow' : `motion ${m.events} · orient ${m.orient} · ${m.grav ? 'gravity' : 'no gravity'} · tilt ${m.tilt}° · y ${m.y}${m.inv ? ' (flipped)' : ''}`;
     setTimeout(tick, 300); }; tick(); }
   if (s.homeToast) { const msg = s.homeToast; await updateSettings({ homeToast: undefined }); setTimeout(() => toast(msg), 300); }
 }
