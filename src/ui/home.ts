@@ -3,9 +3,12 @@
 // twinkles, the cork lifts and the orb drops in. Mockups v1 › 1–4.
 import { getSettings } from '../db/db';
 import type { DMPromise } from '../db/types';
-import { dropOrb, isBusy, mountJar } from '../jar/engine';
+import { dropOrb, highlightOrb, isBusy, mountJar, orbScreenPos, setJarLabel } from '../jar/engine';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn, toSpec } from '../logic/jar';
 import { slotCount } from '../logic/levels';
+import { dateRange, keptDate, promisesOf, renameJar, sealJar } from '../logic/seal';
+import { renameSheet } from './shelf';
+import { db } from '../db/db';
 import { activePromises, editPromise, jarIsFull, keepPromise, makePromise, MAX_LEN, refinePromise, releasePromise } from '../logic/promises';
 import { esc, headerDate, reducedMotion } from '../lib/util';
 import { icon, svg, toast } from './kit';
@@ -35,7 +38,7 @@ async function slotsHTML(): Promise<string> {
   const [list, slots, full] = [await activePromises(), await slotCount(), await jarIsFull()];
   const compact = slots > 1 && list.length > 1;
   let html = list.map((p) => card(p, compact)).join('');
-  if (full) html += `<div class="slot-note card"><span class="serif" style="font-size:19px">Your jar is full.</span><span class="muted" style="font-size:13px">Twelve times you kept your word. Sealing this chapter arrives next.</span></div>`;
+  if (full) html += `<div class="slot-note card"><span class="serif" style="font-size:20px">Your jar is full.</span><span class="muted" style="font-size:14px">Twelve times you kept your word. Seal this chapter and give it a name.</span><button class="btn" data-act="seal" style="margin-top:8px">Seal this jar</button></div>`;
   else if (list.length < slots) html += `<button class="slot-empty" data-act="new"><span class="plus">${svg(icon.plus, 20, 2)}</span>
     <span><span class="serif t" style="display:block">I promise myself…</span><span class="s">${list.length ? 'You have room for one more.' : 'Your slot is free. Make a promise.'}</span></span></button>`;
   return html;
@@ -55,7 +58,8 @@ export async function startHome(el: HTMLElement): Promise<void> {
   if (!c) return;
   const s = await getSettings();
   const jar = await activeJar();
-  mountJar(c, { style: s.style, label: jar.label, orbs: (await orbsIn(jar.id)).map(toSpec) });
+  mountJar(c, { style: s.style, label: jar.label, orbs: (await orbsIn(jar.id)).map(toSpec), onTapOrb: (id) => void showOrb(id),
+    onTapTag: () => { hideOrb(); renameSheet(jar.label, async (l) => { await renameJar(jar.id, l); jar.label = (await db.jars.get(jar.id))!.label; setJarLabel(jar.label); }); } });
   wireSlots();
 }
 
@@ -75,6 +79,7 @@ function setMirror(text: string): void { mirror = text; const m = root.querySele
 
 function wireSlots(): void {
   root.querySelector('[data-act="new"]')?.addEventListener('click', () => promiseSheet());
+  root.querySelector('[data-act="seal"]')?.addEventListener('click', () => void sealSheet());
   root.querySelectorAll<HTMLButtonElement>('.promise').forEach(wireHold);
 }
 
@@ -196,6 +201,58 @@ function releaseSheet(p: DMPromise): void {
       setMirror('Released. That’s allowed.'); toast('Released. Your slot is free.'); void refreshSlots();
     });
   }, 'Release promise');
+}
+
+/* ---------- tap an orb: its promise and the day it was kept ---------- */
+async function showOrb(id: string | null): Promise<void> {
+  hideOrb();
+  if (!id) return;
+  const orb = await db.orbs.get(id), pos = orbScreenPos(id), box = root.querySelector<HTMLElement>('.jar-box'), cv = root.querySelector<HTMLElement>('#jar');
+  if (!orb || !pos || !box || !cv) return;
+  const p = orb.promiseId === 'test' ? undefined : await db.promises.get(orb.promiseId);
+  highlightOrb(id);
+  const pop = document.createElement('div');
+  pop.className = 'orb-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Promise inside the jar');
+  pop.innerHTML = `<span class="serif t">${p ? esc(p.text) : 'Test orb (Beta)'}</span><span class="k">Kept · ${keptDate(orb.keptAt)}</span>${p?.refinedFrom ? `<span class="f">Made smaller from: ${esc(p.refinedFrom)}</span>` : ''}`;
+  box.append(pop);
+  const left = cv.offsetLeft + pos.x, top = cv.offsetTop + pos.y - pos.r - 10;
+  const w = Math.min(250, box.clientWidth - 16);
+  pop.style.width = `${w}px`;
+  pop.style.left = `${Math.max(8, Math.min(box.clientWidth - w - 8, left - w / 2))}px`;
+  pop.style.setProperty('--arrow', `${left - parseFloat(pop.style.left)}px`);
+  pop.style.top = `${top - pop.offsetHeight}px`;
+  setTimeout(() => document.addEventListener('pointerdown', onOutside, true), 0);
+}
+function onOutside(e: Event): void { if (!(e.target as HTMLElement).closest('.orb-pop, #jar')) hideOrb(); }
+function hideOrb(): void { root?.querySelector('.orb-pop')?.remove(); highlightOrb(null); document.removeEventListener('pointerdown', onOutside, true); }
+
+/* ---------- seal this chapter ---------- */
+async function sealSheet(): Promise<void> {
+  const jar = await activeJar();
+  const orbs = await orbsIn(jar.id);
+  const ps = await promisesOf(orbs);
+  const smaller = ps.filter((x) => x?.refinedFrom).length;
+  openSheet(`<p class="serif sheet-title">Seal this chapter</p>
+<div class="lap"><span class="kicker">A look back</span>
+<span>${orbs.length} promises kept · ${dateRange(orbs, jar)}</span>
+${smaller ? `<span>${smaller} of them you made smaller first, and then kept.</span>` : ''}
+${ps[0] ? `<span class="muted">First: ${esc(ps[0].text)}</span>` : ''}${ps[ps.length - 1] ? `<span class="muted">Last: ${esc(ps[ps.length - 1]!.text)}</span>` : ''}</div>
+<label class="field-label" for="sl">Name this jar</label>
+<input id="sl" class="field serif" maxlength="24" value="${esc(jar.label)}" autocomplete="off">
+<div class="chips">${['the gym era', 'learning to rest', 'saying yes to me', 'soft and steady'].map((i) => `<button class="chip" data-n="${esc(i)}">${esc(i)}</button>`).join('')}</div>
+<button class="btn" id="seal">Seal &amp; shelve</button>
+<button class="btn-text" id="notyet" style="align-self:center">Not yet</button>`, (el, close) => {
+    const inp = el.querySelector<HTMLInputElement>('#sl')!;
+    el.querySelectorAll<HTMLButtonElement>('[data-n]').forEach((c) => c.addEventListener('click', () => { inp.value = c.dataset.n!; inp.focus(); }));
+    el.querySelector('#notyet')!.addEventListener('click', close);
+    el.querySelector('#seal')!.addEventListener('click', async () => {
+      const label = inp.value.trim() || jar.label;
+      await sealJar(label); close();
+      mirror = 'A new jar. A new chapter.';
+      toast(`Sealed: “${label}”. It’s on your shelf.`);
+      root.dispatchEvent(new CustomEvent('dearme:rerender', { bubbles: true }));
+    });
+  }, 'Seal this chapter');
 }
 
 /** Beta: drop a test orb (no promise) into the current jar. */

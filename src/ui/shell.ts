@@ -1,49 +1,43 @@
 // Dear Me, shell (Phase 1): Jar · Shelf · Settings in the bottom bar. Header = date, then "Dear Me," (or "Dear <name>,").
 import { db, getSettings, updateSettings } from '../db/db';
-import { esc, headerDate } from '../lib/util';
+import { esc } from '../lib/util';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn } from '../logic/jar';
 import { INSIDES, JAR_STYLES, unmountJar } from '../jar/engine';
 import { dropTestOrb, homeView, startHome } from './home';
+import { jarDetailView, shelfView, startJarDetail, startShelf } from './shelf';
 import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
+let openJar: string | null = null;
 
 export function startShell(el: HTMLElement): void {
   root = el;
+  root.addEventListener('dearme:rerender', () => void render());
   try { const t = localStorage.getItem('dearme-tab'); if (t === 'jar' || t === 'shelf' || t === 'settings') tab = t; } catch { /* default */ }
   void render();
 }
 
 export async function render(): Promise<void> {
   const view = tab === 'jar' ? await homeView()
-    : tab === 'shelf' ? await shelfView() : await settingsView();
+    : tab === 'shelf' ? (openJar ? await jarDetailView(openJar) : await shelfView()) : await settingsView();
   unmountJar();
   root.innerHTML = `<div class="shell"><main class="view" id="main">${view}</main>${tabbar()}</div>`;
   showParticles(tab !== 'settings');
   wire();
   if (tab === 'jar') await startHome(root);
+  if (tab === 'shelf' && !openJar) await startShelf(root, (id) => { openJar = id; void render(); window.scrollTo(0, 0); });
+  if (tab === 'shelf' && openJar) await startJarDetail(root, openJar, () => { openJar = null; void render(); }, () => void render());
 }
 
 function tabbar(): string {
   const b = (id: Tab, label: string, ic: string) =>
     `<button data-tab="${id}" ${tab === id ? 'aria-current="page"' : ''}>${svg(ic)}<span>${label}</span></button>`;
   return `<nav class="tabbar" aria-label="Main"><div class="in">${b('jar', 'Jar', icon.jar)}${b('shelf', 'Shelf', icon.shelf)}${b('settings', 'Settings', icon.menu)}</div></nav>`;
-}
-
-const header = (name: string, sandbox = false) =>
-  `<header class="head"><span class="date">${headerDate()}${sandbox ? ' <span class="chip-beta">Sandbox</span>' : ''}</span><h1 class="wordmark">Dear ${esc(name)}<span class="c">,</span></h1></header>`;
-
-async function shelfView(): Promise<string> {
-  const sealed = await db.jars.filter((j) => !!j.sealedAt && !j.sandbox).count();
-  const kept = await db.promises.filter((p) => p.status === 'kept' && !p.sandbox).count();
-  return `${header('Me')}
-<div class="shelf-head"><span class="serif">Your shelf</span><span class="muted" style="font-size:13px">${sealed} jars · ${kept} kept</span></div>
-${sealed ? '' : `<div class="empty"><div class="plank" style="width:220px"></div><p>No sealed jars yet.<br>Your first one will live here.</p></div>`}`;
 }
 
 async function settingsView(): Promise<string> {
@@ -80,7 +74,7 @@ async function settingsView(): Promise<string> {
 let taps = 0, tapTimer = 0;
 function wire(): void {
   root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => {
-    tab = b.dataset.tab as Tab;
+    tab = b.dataset.tab as Tab; openJar = null;
     try { localStorage.setItem('dearme-tab', tab); } catch { /* not remembered */ }
     void render(); window.scrollTo(0, 0);
   }));

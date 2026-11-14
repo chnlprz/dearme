@@ -14,14 +14,14 @@ var JARS={
   frost:{name:'Frost',lv:6,prof:[[100,92,2],[114,92,6],[130,118,10],[412,118,20]],tint:[170,212,255],lid:'glass',deco:'frost',r:27}
 };
 Object.keys(JARS).forEach(function(k){ var J=JARS[k]; J.id=k; J.y0=J.prof[0][0]; J.w0=J.prof[0][1]; J.wn=J.prof[J.prof.length-1][1]; J.lidB=J.y0+14; });
-function wAt(J,y){ var p=J.prof; if(y<=p[0][0]) return p[0][1]; for(var i=1;i<p.length;i++){ if(y<=p[i][0]){ var a=p[i-1],b=p[i],t=(y-a[0])/(b[0]-a[0]); return a[1]+(b[1]-a[1])*t; } } return p[p.length-1][1]; }
+function wAt(J,y){ var p=J.table||J.prof; if(y<=p[0][0]) return p[0][1]; for(var i=1;i<p.length;i++){ if(y<=p[i][0]){ var a=p[i-1],b=p[i],t=(y-a[0])/(b[0]-a[0]); return a[1]+(b[1]-a[1])*t; } } return p[p.length-1][1]; }
 function hw(J,y){ return wAt(J,Math.min(BY,y))-T-1.5; }
 // Smooth jars (Classic, Rosewater, Moonlight, Pearl) are drawn as one spline: a straight neck that flows into the
 // shoulders with no kink, then rounded bottom corners. Faceted jars (Stardust, Frost) keep their crisp corners.
 var SPLINES={
-  classic:{pts:[[92,72],[110,72],[140,104],[162,114],[412,114]],bot:44,vEnd:true},
+  classic:{pts:[[92,72],[108,72],[128,94],[152,110],[178,114],[412,114]],bot:44,vEnd:true},
   rose:{pts:[[98,66],[114,66],[146,102],[192,123],[262,128],[338,121],[412,96]],bot:22,vEnd:false},
-  pearl:{pts:[[84,60],[100,60],[120,84],[138,92],[412,92]],bot:26,vEnd:true}
+  pearl:{pts:[[84,60],[100,60],[116,78],[134,90],[152,92],[412,92]],bot:26,vEnd:true}
 };
 function jarPath(c,J,inset){
   if(J.id==='moon') return globePath(c,inset);
@@ -47,19 +47,36 @@ function globePath(c,inset){
   c.arc(CX,cy,R,-Math.PI/2+(Math.PI-ab),-Math.PI/2+(a0+0.12),true);
   c.quadraticCurveTo(CX+nw,yn,CX+nw,yn-6); c.lineTo(CX+nw,y0); c.closePath();
 }
+// Width at each height, sampled from the drawn outline, so highlights, flutes and physics follow the real curve.
+function buildTables(){
+  Object.keys(SPLINES).forEach(function(id){
+    var stop=false, sp=SPLINES[id], rec={moveTo:function(){},lineTo:function(x,y){ if(!stop && x<CX) pts.push([y,CX-x]);},closePath:function(){},beginPath:function(){},
+      arcTo:function(){ stop=true; }, bezierCurveTo:function(a,b,c2,d,x,y){ if(stop) return; var p0=pts[pts.length-1]; var x0=CX-p0[1], y0=p0[0];
+        for(var t=1;t<=24;t++){ var u=t/24, m=1-u; var X=m*m*m*x0+3*m*m*u*a+3*m*u*u*c2+u*u*u*x, Y=m*m*m*y0+3*m*m*u*b+3*m*u*u*d+u*u*u*y; if(X<CX) pts.push([Y,CX-X]); } } };
+    var pts=[]; splinePath(rec,sp,0);
+    var left=pts.filter(function(q){return q[1]>0;}).sort(function(a,b){return a[0]-b[0];});
+    var r=sp.bot; left.push([BY-r*0.3,left[left.length-1][1]-r*0.3]); left.push([BY,left[left.length-1][1]-r*0.7]);
+    JARS[id].table=left.map(function(q){return [q[0],q[1],2];});
+  });
+  var R=146, cy=273, g=[[112,58,2],[134,58,2]];
+  for(var y=140;y<=412;y+=6){ g.push([y,Math.sqrt(Math.max(0,R*R-(y-cy)*(y-cy))),2]); }
+  JARS.moon.table=g;
+}
 function splinePath(c,sp,inset){
   var by=BY-inset*0.6, r=Math.max(2,sp.bot-inset*0.6);
   var P=sp.pts.map(function(q){ return [q[1]-inset,q[0]]; }); // [w, y]
   var n=P.length; P[n-1]=[P[n-1][0],by-r];
-  var T=[]; // tangents (dw, dy)
+  // Directions (unit) at each point; each segment's handles are a third of its own length, so no loops or hooks.
+  var D=[], unit=function(v){ var l=Math.hypot(v[0],v[1])||1; return [v[0]/l,v[1]/l]; };
   for(var i=0;i<n;i++){
-    if(i===0) T.push([0,P[1][1]-P[0][1]]);
-    else if(i===1) T.push([0,Math.hypot(P[2][0]-P[1][0],P[2][1]-P[1][1])]); // the neck meets the shoulder vertically: no kink
-    else if(i===n-1) T.push(sp.vEnd?[0,Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1])]:[P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]]);
-    else T.push([(P[i+1][0]-P[i-1][0])/2,(P[i+1][1]-P[i-1][1])/2]);
+    if(i<=1) D.push([0,1]); // straight neck, meeting the shoulder vertically
+    else if(i===n-1) D.push(sp.vEnd?[0,1]:unit([P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]]));
+    else if(sp.vEnd && i===n-2) D.push([0,1]); // the straight side begins here
+    else D.push(unit([P[i+1][0]-P[i-1][0],P[i+1][1]-P[i-1][1]]));
   }
   var segs=[];
-  for(var k=1;k<n-1;k++) segs.push([P[k][0]+T[k][0]/3,P[k][1]+T[k][1]/3, P[k+1][0]-T[k+1][0]/3,P[k+1][1]-T[k+1][1]/3, P[k+1][0],P[k+1][1]]);
+  for(var k=1;k<n-1;k++){ var L=Math.hypot(P[k+1][0]-P[k][0],P[k+1][1]-P[k][1])/3;
+    segs.push([P[k][0]+D[k][0]*L,P[k][1]+D[k][1]*L, P[k+1][0]-D[k+1][0]*L,P[k+1][1]-D[k+1][1]*L, P[k+1][0],P[k+1][1]]); }
   var wl=P[n-1][0];
   c.beginPath(); c.moveTo(CX,P[0][1]); c.lineTo(CX-P[0][0],P[0][1]); c.lineTo(CX-P[1][0],P[1][1]);
   segs.forEach(function(s){ c.bezierCurveTo(CX-s[0],s[1],CX-s[2],s[3],CX-s[4],s[5]); });
@@ -291,7 +308,7 @@ function drawScene(c,jj,list,t,o){
   c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,Math.PI); c.strokeStyle='rgba(255,245,255,.6)'; c.lineWidth=2.4; c.stroke();
   c.save(); jarPath(c,jj,0); c.clip(); var lip=c.createLinearGradient(0,jj.y0,0,jj.y0+14); lip.addColorStop(0,'rgba(255,240,255,.12)'); lip.addColorStop(1,'rgba(255,240,255,0)'); c.fillStyle=lip; c.fillRect(CX-jj.w0,jj.y0+2,jj.w0*2,14); c.restore();
   if(live && !REDUCED){ glint(c,CX-wAt(jj,top+20)+16,top+20,t,0); glint(c,CX+wAt(jj,260)-22,260,t,2.1); glint(c,CX-jj.w0+12,jj.y0+8,t,4.2); }
-  drawTag(c,jj,t,o.label,live);
+  if(!o.noTag) drawTag(c,jj,t,o.label,live);
   c.restore();
 }
 function glint(c,x,y,t,ph){ var a=Math.max(0,Math.sin(t/1100+ph)); a=a*a*a; if(a<0.02) return;
@@ -405,17 +422,18 @@ function toLocal(e){ var r=cv.getBoundingClientRect(); return { x:(e.clientX-r.l
 function onDown(e){ dragging=true; dragMoved=false; dragX=e.clientX; wobbleT=-1; try{cv.setPointerCapture(e.pointerId);}catch(_){} wake(); }
 function onMove(e){ if(!dragging) return; if(Math.abs(e.clientX-dragX)>6) dragMoved=true; tiltTarget=Math.max(-0.32,Math.min(0.32,(e.clientX-dragX)*0.004)); wake(); }
 function onUp(e){ if(!dragging) return; dragging=false; wake();
+  if(!dragMoved && mounted.onTapTag){ var q=toLocal(e), jj=J(); if(q.x>CX+jj.w0+8 && q.x<CX+jj.w0+140 && q.y>jj.y0+36 && q.y<jj.y0+120){ mounted.onTapTag(); return; } }
   if(!dragMoved && mounted.onTapOrb){ var p=toLocal(e), hit=null;
     orbs.forEach(function(o){ if(Math.hypot(o.x-p.x,o.y-p.y)<=o.r+6) hit=o; });
     mounted.onTapOrb(hit?hit.id:null); } }
-var mounted={onTapOrb:null};
+var mounted={onTapOrb:null,onTapTag:null};
 
 /* ================= public API ================= */
 /** Put the live jar on a canvas. orbList: [{id, inside, color, hue}] in the order they were kept. */
 export function mountJar(canvas, opts){
   unmountJar();
   cv=canvas; ctx=cv.getContext('2d'); jarId=JARS[opts.style]?opts.style:'classic'; label=opts.label||''; sealed=false; hi=null;
-  mounted.onTapOrb=opts.onTapOrb||null;
+  mounted.onTapOrb=opts.onTapOrb||null; mounted.onTapTag=opts.onTapTag||null;
   resize();
   settle((opts.orbs||[]).map(function(s){ var o=makeOrb(s.inside,s.color,0,0); o.id=s.id; if(s.hue!=null) o.hue=s.hue; return o; }));
   cv.addEventListener('pointerdown',onDown); cv.addEventListener('pointermove',onMove);
@@ -451,7 +469,7 @@ export function drawStillJar(canvas, cssW, style, orbList, text){
   if(list.some(function(o){return o.x==null;})){ var sJ=jarId, sO=orbs; jarId=jj.id; settle(list); list=orbs; jarId=sJ; orbs=sO; }
   var c=canvas.getContext('2d'), sK=K; K=sc*dpr; var sCache=spriteCache; spriteCache={}; var sCork=corkTex; corkTex=makeCorkTex();
   c.setTransform(sc*dpr,0,0,sc*dpr,0,0); c.translate(0,OY);
-  drawScene(c,jj,list,0,{live:false,label:text||'',sealed:!!text});
+  drawScene(c,jj,list,0,{live:false,label:text||'',sealed:true,noTag:text==null});
   K=sK; spriteCache=sCache; corkTex=sCork;
 }
 /** One orb on its own (pickers). */
@@ -465,3 +483,6 @@ export function drawOrbPreview(canvas, inside, size){
 }
 export const JAR_STYLES = Object.keys(JARS).map(function(k){ return { id:k, name:JARS[k].name, level:JARS[k].lv }; });
 export const INSIDES = Object.keys(THEMES).map(function(k){ return { id:k, name:THEMES[k].name, level:THEMES[k].lv, colors:THEMES[k].pal.length }; });
+buildTables();
+/** An orb's colours, for small dots in lists: {light, base, deep, glow:"r,g,b"}. */
+export function orbColors(inside, color){ var t=THEMES[inside]||THEMES.pearl, p=t.pal[color%t.pal.length]; return { light:p.l, base:p.b, deep:p.d, glow:p.g.join(',') }; }

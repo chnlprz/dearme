@@ -1,4 +1,4 @@
-# Dear Me, 0.3
+# Dear Me, 0.4
 
 Self-trust PWA by Innova Space: make small promises to yourself; every promise you keep becomes a glowing orb in a jar. 12 orbs fill a jar; sealed jars live on the Shelf exactly as they were. Standalone self-care app: **no links or shared data with Nudge!, Noggin? or Drift** (only the Innova Space passkey for sign-in, Phase 9).
 
@@ -24,7 +24,7 @@ Vite + TypeScript (no framework), Dexie over IndexedDB (`src/db`), vite-plugin-p
 - Copy: gentle, short, Taglish allowed where the Bible uses it.
 
 ## Build phases (Bible › Tech)
-1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
+1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
 
 ## Beta test mode
 Settings › About › tap the version 7 times. Sandbox jar (`sandbox: true` rows never mix with real ones), unlock all, animation replays. Remove or hide before public launch.
@@ -35,3 +35,6 @@ Plain JS port of the jar test (canvas 2D + physics). API: mountJar / unmountJar,
 ## Promises (`src/logic/promises.ts`, `src/ui/home.ts`)
 Tap a card = options sheet (Mark as kept · Edit · Refine · Release). Hold 1.1 s = gold fill + twinkles, then keep (vibrate, cork lifts, orb drops). Refine keeps `refinedFrom` (first wording); story steps made › edited/refined › kept/released (+ optional release note). Slots from `src/logic/levels.ts` (Level 2 = 2 slots, Level 4 = 3; unlockAll = 3). A full jar (12) blocks keeping until sealing (Phase 4).
 Jar outlines: Classic, Rosewater, Pearl = one spline (straight neck flowing into the shoulders); Moonlight = a true globe; Stardust, Frost = faceted.
+
+## Sealing and the Shelf (`src/logic/seal.ts`, `src/ui/shelf.ts`)
+Full jar (12) → "Seal this jar" sheet: a look back (count, dates, how many were made smaller, first and last) + name (max 24) → `sealJar` saves each orb's resting x/y/a from the live jar, sets `sealedAt`, and starts "chapter n+1". Shelf = two jars per wooden plank, newest first, drawn with `drawStillJar` from saved positions (never re-settled). Jar detail: rename (pencil), date range, every promise with the day it was kept and "Made smaller from". Home: tap the tag to rename the current jar; tap an orb for its promise and date (gold ring + card).
