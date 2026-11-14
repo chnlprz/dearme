@@ -3,7 +3,7 @@
 // twinkles, the cork lifts and the orb drops in. Mockups v1 › 1–4.
 import { getSettings } from '../db/db';
 import type { DMPromise } from '../db/types';
-import { dropOrb, highlightOrb, isBusy, mountJar, orbScreenPos, setJarLabel } from '../jar/engine';
+import { dropOrb, highlightOrb, isBusy, motionInfo, mountJar, orbScreenPos, setJarLabel } from '../jar/engine';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn, toSpec } from '../logic/jar';
 import { slotCount } from '../logic/levels';
 import { dateRange, keptDate, promisesOf, renameJar, sealJar } from '../logic/seal';
@@ -32,6 +32,7 @@ export async function homeView(): Promise<string> {
 <p class="mirror" id="mirror" aria-live="polite">${esc(mirror)}</p>
 <section class="stage" aria-label="Your jar">
   <div class="jar-box"><canvas id="jar" role="img" aria-label="Your jar, ${esc(jar.label)}, with ${kept} kept promises"></canvas></div>
+  ${s.beta ? '<p class="mdbg" id="mdbg">motion: tap the screen once</p>' : ''}
   <div class="progress"><span><b id="kept">${kept}</b> / ${JAR_SIZE} promises kept</span><div class="bar" aria-hidden="true"><i id="fill" style="width:${(kept / JAR_SIZE) * 100}%"></i></div></div>
 </section>
 <div class="slots" id="slots">${await slotsHTML()}</div>`;
@@ -69,6 +70,10 @@ export async function startHome(el: HTMLElement): Promise<void> {
   mountJar(c, { style: s.style, label: jar.label, sound: s.sound, motion: s.motion, orbs: (await orbsIn(jar.id)).map(toSpec), onTapOrb: (id) => void showOrb(id),
     onTapTag: () => { hideOrb(); renameSheet(jar.label, async (l) => { await renameJar(jar.id, l); jar.label = (await db.jars.get(jar.id))!.label; setJarLabel(jar.label); }); } });
   wireSlots();
+  const dbg = root.querySelector<HTMLElement>('#mdbg');
+  if (dbg) { const tick = (): void => { if (!dbg.isConnected) return; const m = motionInfo();
+    dbg.textContent = !m.on ? 'motion: off in Settings' : !m.bound ? 'motion: tap the screen once to allow' : `motion: ${m.events} readings · tilt ${m.tilt}° · y ${m.y}${m.inv ? ' (flipped)' : ''}`;
+    setTimeout(tick, 300); }; tick(); }
   if (s.homeToast) { const msg = s.homeToast; await updateSettings({ homeToast: undefined }); setTimeout(() => toast(msg), 300); }
 }
 

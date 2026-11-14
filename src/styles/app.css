@@ -263,3 +263,5 @@
 .sum .l { font-size: 17px; }
 .sum .d { font-size: 13px; }
 a.row { text-decoration: none; }
+
+.mdbg { text-align: center; font-size: 11px; color: var(--muted); margin: -4px 0 6px; font-variant-numeric: tabular-nums; }

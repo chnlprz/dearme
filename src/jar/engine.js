@@ -304,7 +304,8 @@ function drawScene(c,jj,list,t,o){
   var base=c.createLinearGradient(0,FY-6,0,BY); base.addColorStop(0,'rgba(255,240,255,.05)'); base.addColorStop(1,'rgba(255,240,255,.24)'); c.fillStyle=base; c.fillRect(0,FY-6,W,BY-FY+8);
   c.restore();
   c.beginPath(); c.ellipse(CX,FY+3,jj.wn-T-4,8,0,0.15*Math.PI,0.85*Math.PI); c.strokeStyle=rgba(ag,0.2+0.5*fillN); c.lineWidth=2.4; c.stroke();
-  jarPath(c,jj,0); c.strokeStyle='rgba(255,240,255,.42)'; c.lineWidth=1.6; c.stroke();
+  // outline without its top edge: no line across the mouth
+  c.save(); c.beginPath(); c.rect(0,jj.y0+1.2,W,H); c.clip(); jarPath(c,jj,0); c.strokeStyle='rgba(255,240,255,.42)'; c.lineWidth=1.6; c.lineCap='round'; c.stroke(); c.restore();
 
   drawLid(c,jj,o.lift||0,t,o.sealed);
   if(entering.length) drawOrbList(c,entering,t,o,live);
@@ -321,7 +322,7 @@ function drawLid(c,jj,lift,t,sealedNow){
   var y0=jj.y0, w0=jj.w0;
   c.save(); c.translate(0,-lift); if(lift>1){ c.translate(CX,y0); c.rotate(-0.12*Math.min(1,lift/60)); c.translate(-CX,-y0); }
   if(jj.lid==='cork'){
-    var top=y0-52, bot=y0+14, rt=w0-3, rb=w0-T+1;
+    var top=y0-52, bot=y0+12, rt=w0+4, rb=w0+1; // sits snug over the neck, so no glass edge pokes out beside it
     c.beginPath(); c.moveTo(CX-rt,top); c.lineTo(CX-rb,bot); c.ellipse(CX,bot,rb,9,0,Math.PI,0,true); c.lineTo(CX+rt,top); c.ellipse(CX,top,rt,12,0,0,Math.PI); c.closePath();
     c.save(); c.clip(); c.drawImage(corkTex,CX-85,top-12,170,100);
     c.fillStyle=metal(c,CX-rt,CX+rt,['rgba(40,20,8,.55)','rgba(255,230,190,.10)','rgba(255,240,210,.18)','rgba(40,20,8,.25)','rgba(40,20,8,.6)']); c.fillRect(CX-rt-2,top-14,rt*2+4,bot-top+30);
@@ -405,34 +406,37 @@ function chime(x){ if(silent||!AC) return; lastClink=AC.currentTime; var f=[1046
   tone([f,f*2,f*3.01],0.14,(x-CX)/150,0.9); setTimeout(function(){ tone([f*1.5,f*3],0.07,(x-CX)/150,0.8); },90); }
 
 /* ================= move with the phone (tilt = gravity follows, shake = orbs jump) ================= */
-var motionOn=true, motionBound=false, gAng=0, gTarget=0, lastShake=0, gfx=0, gfy=9.8;
-// iOS reports motion with the opposite sign to Android/Chrome (upright: y = -9.8 on iPhone, +9.8 elsewhere)
+var motionOn=true, motionBound=false, motionOK=false, gAng=0, gTarget=0, lastShake=0, gfx=0, gfy=9.8, yAvg=0, mEvents=0;
 var IOS=/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1);
-function onMotion(e){ if(!cv) return;
-  // Tilt: gravity on the screen plane follows the phone (low-pass filtered), so orbs roll to the low side.
+// iPhones report motion with the opposite sign to the spec (upright: y = -9.8 instead of +9.8). Start from the
+// user-agent guess, then trust the phone itself: people hold it top-up, so the long-run sign of y tells us.
+var INV=IOS;
+function onMotion(e){ mEvents++; if(!cv) return;
   var g=e.accelerationIncludingGravity;
-  if(g && g.x!=null && g.y!=null){ var x=-g.x, y=g.y; if(IOS){ x=-x; y=-y; } // iOS reports the opposite sign
-    gfx+=(x-gfx)*0.25; gfy+=(y-gfy)*0.25;
-    var ang=(screen.orientation&&screen.orientation.angle)||0, t2=0;
-    if(!ang && Math.hypot(gfx,gfy)>2.5) t2=Math.atan2(gfx,gfy);
-    var lim=liftPhase?0.45:1.25; t2=Math.max(-lim,Math.min(lim,t2));
-    if(Math.abs(t2-gTarget)>0.008){ gTarget=t2; if(Math.abs(gTarget-gAng)>0.015) wake(); } }
-  // Shake: a quick jolt makes the orbs jump.
+  if(g && g.x!=null && g.y!=null){
+    yAvg+=(g.y-yAvg)*0.02; if(yAvg<-4) INV=true; else if(yAvg>4) INV=false;
+    var x=INV?g.x:-g.x, y=INV?-g.y:g.y; // x>0: right side is low
+    gfx+=(x-gfx)*0.3; gfy+=(y-gfy)*0.3;
+    // works upright (steering-wheel turn) and held flat (side tilt): sideways pull vs a steady downward pull
+    var t2=Math.atan2(gfx, Math.max(Math.abs(gfy),5));
+    var lim=liftPhase?0.45:1.2; t2=Math.max(-lim,Math.min(lim,t2));
+    if(Math.abs(t2-gTarget)>0.006){ gTarget=t2; if(Math.abs(gTarget-gAng)>0.012) wake(); } }
   var a=e.acceleration; if(!a||a.x==null||liftPhase) return;
   var m=Math.hypot(a.x,a.y||0), n=performance.now(); if(m<9||n-lastShake<110) return; lastShake=n;
-  var k=Math.min(1.6,m/14), sx=IOS?-1:1;
+  var k=Math.min(1.6,m/14), sx=INV?-1:1;
   orbs.forEach(function(o){ o.vx+=(-a.x*sx*24+(Math.random()*2-1)*90)*k; o.vy+=((a.y||0)*sx*24-80-Math.random()*140)*k;
     var sp=Math.hypot(o.vx,o.vy); if(sp>900){ o.vx*=900/sp; o.vy*=900/sp; } });
   wake(); }
-function bindMotion(){ if(motionBound||!motionOn||REDUCED) return; motionBound=true; window.addEventListener('devicemotion',onMotion); }
-function unbindMotion(){ motionBound=false; gTarget=0; window.removeEventListener('devicemotion',onMotion); }
-function askMotion(){ if(!motionOn||REDUCED) return;
+// Listeners stay on for the whole visit once allowed (the jar remounts often; iOS only lets us ask on a tap).
+function bindMotion(){ if(motionBound||REDUCED) return; motionBound=true; window.addEventListener('devicemotion',onMotion); }
+function unbindMotion(){ motionBound=false; gTarget=0; gAng=0; window.removeEventListener('devicemotion',onMotion); }
+function askMotion(){ if(!motionOn||REDUCED||motionBound) return;
   var DM=window.DeviceMotionEvent;
-  if(DM && typeof DM.requestPermission==='function'){ // iOS: needs a tap first
-    DM.requestPermission().then(function(r){ if(r==='granted') bindMotion(); }).catch(function(){});
-  } else bindMotion(); }
-var firstTapDone=false;
-function onFirstTap(){ unlockAudio(); if(!firstTapDone){ firstTapDone=true; askMotion(); } }
+  if(IOS && DM && typeof DM.requestPermission==='function'){ DM.requestPermission().then(function(r){ if(r==='granted'){ motionOK=true; bindMotion(); } }).catch(function(){}); }
+  else { motionOK=true; bindMotion(); } }
+function onFirstTap(){ unlockAudio(); askMotion(); }
+/** Beta: is the phone sending motion, and what tilt do we read. */
+export function motionInfo(){ return { on:motionOn, bound:motionBound, events:mEvents, ios:IOS, inv:INV, tilt:Math.round(gAng*57.3), y:+yAvg.toFixed(1) }; }
 
 function ease(x){return 1-Math.pow(1-x,3);}
 function wake(){ sleeping=false; calm=0; if(cv && !raf) raf=requestAnimationFrame(frame); }
@@ -490,7 +494,7 @@ export function mountJar(canvas, opts){
   unmountJar();
   cv=canvas; ctx=cv.getContext('2d'); jarId=JARS[opts.style]?opts.style:'classic'; label=opts.label||''; sealed=false; hi=null;
   mounted.onTapOrb=opts.onTapOrb||null; mounted.onTapTag=opts.onTapTag||null;
-  soundOn=opts.sound!==false; motionOn=opts.motion!==false; if(!motionOn) unbindMotion();
+  soundOn=opts.sound!==false; motionOn=opts.motion!==false; if(!motionOn) unbindMotion(); else if(motionOK || !IOS) askMotion();
   document.addEventListener('pointerup',onFirstTap,true); document.addEventListener('click',onFirstTap,true);
   resize();
   settle((opts.orbs||[]).map(function(s){ var o=makeOrb(s.inside,s.color,0,0); o.id=s.id; if(s.hue!=null) o.hue=s.hue; return o; }));
@@ -504,7 +508,7 @@ export function unmountJar(){
   cv.removeEventListener('pointerdown',onDown); cv.removeEventListener('pointermove',onMove);
   cv.removeEventListener('pointerup',onUp); cv.removeEventListener('pointercancel',onUp);
   window.removeEventListener('resize',resize);
-  document.removeEventListener('pointerup',onFirstTap,true); document.removeEventListener('click',onFirstTap,true); unbindMotion(); firstTapDone=false;
+  document.removeEventListener('pointerup',onFirstTap,true); document.removeEventListener('click',onFirstTap,true);
   if(raf) cancelAnimationFrame(raf); raf=0; cv=null; ctx=null; particles=[]; liftPhase=null; lift=0;
 }
 /** The cork lifts, the orb drops in, the cork closes. Calls done() once it has landed. */
