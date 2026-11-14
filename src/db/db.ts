@@ -37,7 +37,8 @@ export async function ensureSeeded(): Promise<void> {
 }
 
 export async function getSettings(): Promise<Settings> {
-  return (await db.settings.get('settings')) ?? defaultSettings();
+  // Older settings rows get any new fields from the defaults.
+  return { ...defaultSettings(), ...((await db.settings.get('settings')) ?? {}) };
 }
 
 export async function updateSettings(patch: Partial<Omit<Settings, 'id'>>): Promise<Settings> {

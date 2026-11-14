@@ -68,6 +68,9 @@ export interface Settings {
   beta: boolean; // Beta test mode section visible
   sandbox: boolean; // Beta: use the separate test jar
   unlockAll: boolean; // Beta: every jar and inside unlocked
+  lastLevel: number; // highest level already celebrated
+  seenUnlocks: string[]; // 'jar:rose', 'in:heart' … (no NEW badge once seen)
+  homeToast?: string; // one gentle line shown next time Home opens
   updatedAt: string;
 }
 

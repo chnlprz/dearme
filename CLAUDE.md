@@ -1,4 +1,4 @@
-# Dear Me, 0.4
+# Dear Me, 0.5
 
 Self-trust PWA by Innova Space: make small promises to yourself; every promise you keep becomes a glowing orb in a jar. 12 orbs fill a jar; sealed jars live on the Shelf exactly as they were. Standalone self-care app: **no links or shared data with Nudge!, Noggin? or Drift** (only the Innova Space passkey for sign-in, Phase 9).
 
@@ -24,7 +24,7 @@ Vite + TypeScript (no framework), Dexie over IndexedDB (`src/db`), vite-plugin-p
 - Copy: gentle, short, Taglish allowed where the Bible uses it.
 
 ## Build phases (Bible › Tech)
-1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
+1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up ✅ · 6. Onboarding · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
 
 ## Beta test mode
 Settings › About › tap the version 7 times. Sandbox jar (`sandbox: true` rows never mix with real ones), unlock all, animation replays. Remove or hide before public launch.
@@ -38,3 +38,6 @@ Jar outlines: Classic, Rosewater, Pearl = one spline (straight neck flowing into
 
 ## Sealing and the Shelf (`src/logic/seal.ts`, `src/ui/shelf.ts`)
 Full jar (12) → "Seal this jar" sheet: a look back (count, dates, how many were made smaller, first and last) + name (max 24) → `sealJar` saves each orb's resting x/y/a from the live jar, sets `sealedAt`, and starts "chapter n+1". Shelf = two jars per wooden plank, newest first, drawn with `drawStillJar` from saved positions (never re-settled). Jar detail: rename (pencil), date range, every promise with the day it was kept and "Made smaller from". Home: tap the tag to rename the current jar; tap an orb for its promise and date (gold ring + card).
+
+## Levels and looks (`src/logic/unlocks.ts`, `src/ui/customize.ts`, `src/ui/levelup.ts`)
+Level from real kept promises (sandbox never levels up). Each level 2–6 opens one jar and one inside (+ slots at 2 and 4). Level-up card after the orb lands (Try a new look → Customize). Settings: profile with level, progress and what opens next; "Jar and what's inside" with NEW badges (`seenUnlocks`). Jar pick = glass changes now; inside pick = confirm sheet when the jar has orbs ("<Inside> from your next promise", before → after), then a one-time Home toast (`homeToast`). Locked cards show "Level N · X kept". Entering orbs are drawn after the rim (no rim line across them).

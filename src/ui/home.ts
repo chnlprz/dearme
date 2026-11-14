@@ -8,7 +8,9 @@ import { activeJar, JAR_SIZE, makeOrb, orbsIn, toSpec } from '../logic/jar';
 import { slotCount } from '../logic/levels';
 import { dateRange, keptDate, promisesOf, renameJar, sealJar } from '../logic/seal';
 import { renameSheet } from './shelf';
-import { db } from '../db/db';
+import { db, updateSettings } from '../db/db';
+import { pendingLevelUp } from '../logic/unlocks';
+import { showLevelUp } from './levelup';
 import { activePromises, editPromise, jarIsFull, keepPromise, makePromise, MAX_LEN, refinePromise, releasePromise } from '../logic/promises';
 import { esc, headerDate, reducedMotion } from '../lib/util';
 import { icon, svg, toast } from './kit';
@@ -61,6 +63,7 @@ export async function startHome(el: HTMLElement): Promise<void> {
   mountJar(c, { style: s.style, label: jar.label, orbs: (await orbsIn(jar.id)).map(toSpec), onTapOrb: (id) => void showOrb(id),
     onTapTag: () => { hideOrb(); renameSheet(jar.label, async (l) => { await renameJar(jar.id, l); jar.label = (await db.jars.get(jar.id))!.label; setJarLabel(jar.label); }); } });
   wireSlots();
+  if (s.homeToast) { const msg = s.homeToast; await updateSettings({ homeToast: undefined }); setTimeout(() => toast(msg), 300); }
 }
 
 async function refreshSlots(): Promise<void> {
@@ -113,7 +116,10 @@ async function keep(id: string, b?: HTMLElement): Promise<void> {
   if (!orb) return;
   b?.classList.add('gone');
   setMirror(KEPT_LINES[Math.floor(Math.random() * KEPT_LINES.length)]);
-  dropOrb(toSpec(orb), () => { void refreshCount(); });
+  dropOrb(toSpec(orb), () => {
+    void refreshCount();
+    void pendingLevelUp().then((lv) => { if (lv) setTimeout(() => { void refreshSlots(); showLevelUp(lv, () => root.dispatchEvent(new CustomEvent('dearme:customize', { bubbles: true }))); }, 300); });
+  });
   setTimeout(() => void refreshSlots(), reducedMotion() ? 0 : 420);
 }
 

@@ -241,6 +241,24 @@ function avgGlow(list){ if(!list.length) return [255,200,220]; var r=0,g=0,b=0;
   list.forEach(function(o){var p=THEMES[o.th].pal[o.ci%THEMES[o.th].pal.length].g; r+=p[0];g+=p[1];b+=p[2];}); var n=list.length; return [r/n|0,g/n|0,b/n|0]; }
 
 // draws a jar scene into context c (already scaled to stage units)
+function drawOrbList(c,list,t,o,live){
+  c.globalCompositeOperation='lighter';
+  for(var h=0;h<list.length;h++){ var ob=list[h], sp2=sprites(ob), hs=sp2.h.width/K;
+    c.globalAlpha=(REDUCED||!live?1:0.85+0.15*Math.sin(t/900+ob.tw))*(0.75+0.25*(o.pulse||0));
+    c.drawImage(sp2.h,ob.x-hs/2,ob.y-hs/2,hs,hs); }
+  c.globalAlpha=1; c.globalCompositeOperation='source-over';
+  for(var q=0;q<list.length;q++){ var b=list[q], spr=sprites(b).b, sz=spr.width/K, shp=THEMES[b.th].shape;
+    c.save(); c.translate(b.x,b.y); c.rotate(shp==='round'||shp==='flake'?b.a:b.base+b.a*0.25); c.drawImage(spr,-sz/2,-sz/2,sz,sz); c.restore();
+    if(shp==='round'){ var r=b.r;
+      var bl=c.createRadialGradient(b.x+r*0.32,b.y+r*0.42,0,b.x+r*0.32,b.y+r*0.42,r*0.55); bl.addColorStop(0,'rgba(255,255,255,.42)'); bl.addColorStop(1,'rgba(255,255,255,0)');
+      c.fillStyle=bl; c.beginPath(); c.arc(b.x,b.y,r,0,Math.PI*2); c.fill();
+      c.save(); c.translate(b.x-r*0.34,b.y-r*0.42); c.rotate(-0.65); var hl=c.createRadialGradient(0,0,0,0,0,r*0.3);
+      hl.addColorStop(0,'rgba(255,255,255,.95)'); hl.addColorStop(.5,'rgba(255,255,255,.45)'); hl.addColorStop(1,'rgba(255,255,255,0)');
+      c.scale(1,0.6); c.fillStyle=hl; c.beginPath(); c.arc(0,0,r*0.3,0,Math.PI*2); c.fill(); c.restore();
+      c.fillStyle='rgba(255,255,255,.95)'; c.beginPath(); c.arc(b.x-r*0.42,b.y-r*0.5,r*0.06,0,Math.PI*2); c.fill();
+      c.strokeStyle='rgba(255,255,255,.28)'; c.lineWidth=1.2; c.beginPath(); c.arc(b.x,b.y,r*0.82,0.35,1.25); c.stroke(); }
+  }
+}
 function drawScene(c,jj,list,t,o){
   var fillN=list.length/12, ag=avgGlow(list), tint=jj.tint, live=o.live;
   // light spill + shadow
@@ -260,25 +278,10 @@ function drawScene(c,jj,list,t,o){
   c.beginPath(); c.ellipse(CX,FY,jj.wn-T,11,0,Math.PI,Math.PI*2); c.strokeStyle=rgba(tint,.16); c.lineWidth=1.2; c.stroke();
   c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,Math.PI,Math.PI*2); c.strokeStyle='rgba(255,240,255,.35)'; c.lineWidth=1.6; c.stroke();
 
-  // orbs
-  var k=o.k;
+  // orbs: the ones still in the neck (falling in) are drawn after the glass rim, so no rim line crosses them
+  var mouth=jj.y0+14, settled=list.filter(function(q){ return q.y-q.r*0.6>mouth; }), entering=list.filter(function(q){ return q.y-q.r*0.6<=mouth; });
   c.save(); jarPath(c,jj,2); c.rect(CX-60,-200,120,jj.y0+210); c.clip();
-  c.globalCompositeOperation='lighter';
-  for(var h=0;h<list.length;h++){ var ob=list[h], sp2=sprites(ob), hs=sp2.h.width/K;
-    c.globalAlpha=(REDUCED||!live?1:0.85+0.15*Math.sin(t/900+ob.tw))*(0.75+0.25*(o.pulse||0));
-    c.drawImage(sp2.h,ob.x-hs/2,ob.y-hs/2,hs,hs); }
-  c.globalAlpha=1; c.globalCompositeOperation='source-over';
-  for(var q=0;q<list.length;q++){ var b=list[q], spr=sprites(b).b, sz=spr.width/K, shp=THEMES[b.th].shape;
-    c.save(); c.translate(b.x,b.y); c.rotate(shp==='round'||shp==='flake'?b.a:b.base+b.a*0.25); c.drawImage(spr,-sz/2,-sz/2,sz,sz); c.restore();
-    if(shp==='round'){ var r=b.r;
-      var bl=c.createRadialGradient(b.x+r*0.32,b.y+r*0.42,0,b.x+r*0.32,b.y+r*0.42,r*0.55); bl.addColorStop(0,'rgba(255,255,255,.42)'); bl.addColorStop(1,'rgba(255,255,255,0)');
-      c.fillStyle=bl; c.beginPath(); c.arc(b.x,b.y,r,0,Math.PI*2); c.fill();
-      c.save(); c.translate(b.x-r*0.34,b.y-r*0.42); c.rotate(-0.65); var hl=c.createRadialGradient(0,0,0,0,0,r*0.3);
-      hl.addColorStop(0,'rgba(255,255,255,.95)'); hl.addColorStop(.5,'rgba(255,255,255,.45)'); hl.addColorStop(1,'rgba(255,255,255,0)');
-      c.scale(1,0.6); c.fillStyle=hl; c.beginPath(); c.arc(0,0,r*0.3,0,Math.PI*2); c.fill(); c.restore();
-      c.fillStyle='rgba(255,255,255,.95)'; c.beginPath(); c.arc(b.x-r*0.42,b.y-r*0.5,r*0.06,0,Math.PI*2); c.fill();
-      c.strokeStyle='rgba(255,255,255,.28)'; c.lineWidth=1.2; c.beginPath(); c.arc(b.x,b.y,r*0.82,0.35,1.25); c.stroke(); }
-  }
+  drawOrbList(c,settled,t,o,live);
   c.restore();
   if(o.particles){ c.globalCompositeOperation='lighter';
     o.particles.forEach(function(pp){ c.fillStyle=rgba(pp.c,pp.life*0.9); c.beginPath(); c.arc(pp.x,pp.y,pp.s*(0.6+pp.life),0,Math.PI*2); c.fill(); });
@@ -306,6 +309,7 @@ function drawScene(c,jj,list,t,o){
 
   drawLid(c,jj,o.lift||0,t,o.sealed);
   c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,Math.PI); c.strokeStyle='rgba(255,245,255,.6)'; c.lineWidth=2.4; c.stroke();
+  if(entering.length) drawOrbList(c,entering,t,o,live);
   c.save(); jarPath(c,jj,0); c.clip(); var lip=c.createLinearGradient(0,jj.y0,0,jj.y0+14); lip.addColorStop(0,'rgba(255,240,255,.12)'); lip.addColorStop(1,'rgba(255,240,255,0)'); c.fillStyle=lip; c.fillRect(CX-jj.w0,jj.y0+2,jj.w0*2,14); c.restore();
   if(live && !REDUCED){ glint(c,CX-wAt(jj,top+20)+16,top+20,t,0); glint(c,CX+wAt(jj,260)-22,260,t,2.1); glint(c,CX-jj.w0+12,jj.y0+8,t,4.2); }
   if(!o.noTag) drawTag(c,jj,t,o.label,live);
@@ -396,7 +400,7 @@ function frame(now){
   if(!sleeping){ for(var s=0;s<4;s++) step(dt/4);
     var en=0; orbs.forEach(function(o){en+=Math.abs(o.vx)+Math.abs(o.vy);});
     if(en<orbs.length*6 && !liftPhase && Math.abs(tilt)<0.002 && !dragging){ if(++calm>40){ sleeping=true; orbs.forEach(function(o){o.vx=o.vy=0;}); } } else calm=0; }
-  for(var i=particles.length-1;i>=0;i--){ var p=particles[i]; p.vy+=180*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*1.4; if(p.life<=0) particles.splice(i,1); }
+  for(var i=particles.length-1;i>=0;i--){ var p=particles[i]; p.vy+=180*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; if(p.y>FY-2){ p.y=FY-2; p.vy*=-0.3; p.vx*=0.6; } p.life-=dt*1.4; if(p.life<=0) particles.splice(i,1); }
   glowPulse=Math.max(0,glowPulse-dt*1.2);
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.setTransform(K,0,0,K,0,0);
   ctx.translate(0,OY);
