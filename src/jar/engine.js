@@ -305,12 +305,16 @@ function drawScene(c,jj,list,t,o){
   c.restore();
   c.beginPath(); c.ellipse(CX,FY+3,jj.wn-T-4,8,0,0.15*Math.PI,0.85*Math.PI); c.strokeStyle=rgba(ag,0.2+0.5*fillN); c.lineWidth=2.4; c.stroke();
   jarPath(c,jj,0); c.strokeStyle='rgba(255,240,255,.42)'; c.lineWidth=1.6; c.stroke();
-  jarPath(c,jj,T); c.strokeStyle=rgba(tint,.14); c.lineWidth=1; c.stroke();
+  // inner wall line only below the neck, so the neck reads as one clean piece of glass
+  c.save(); c.beginPath(); c.rect(0,jj.y0+30,W,H); c.clip(); jarPath(c,jj,T); c.strokeStyle=rgba(tint,.12); c.lineWidth=1; c.stroke(); c.restore();
 
   drawLid(c,jj,o.lift||0,t,o.sealed);
-  c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,Math.PI); c.strokeStyle='rgba(255,245,255,.6)'; c.lineWidth=2.4; c.stroke();
+  // Front lip of the glass: full only while the lid is up; with the lid on, a faint sheen at the sides only (no line across the cork or lid).
+  var open=(o.lift||0)>3;
+  if(open){ c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,Math.PI); c.strokeStyle='rgba(255,245,255,.55)'; c.lineWidth=2; c.stroke(); }
+  else { c.strokeStyle='rgba(255,245,255,.35)'; c.lineWidth=1.6; c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0.78*Math.PI,Math.PI); c.stroke(); c.beginPath(); c.ellipse(CX,jj.y0,jj.w0,10,0,0,0.22*Math.PI); c.stroke(); }
   if(entering.length) drawOrbList(c,entering,t,o,live);
-  c.save(); jarPath(c,jj,0); c.clip(); var lip=c.createLinearGradient(0,jj.y0,0,jj.y0+14); lip.addColorStop(0,'rgba(255,240,255,.12)'); lip.addColorStop(1,'rgba(255,240,255,0)'); c.fillStyle=lip; c.fillRect(CX-jj.w0,jj.y0+2,jj.w0*2,14); c.restore();
+
   if(live && !REDUCED){ glint(c,CX-wAt(jj,top+20)+16,top+20,t,0); glint(c,CX+wAt(jj,260)-22,260,t,2.1); glint(c,CX-jj.w0+12,jj.y0+8,t,4.2); }
   if(!o.noTag) drawTag(c,jj,t,o.label,live);
   c.restore();

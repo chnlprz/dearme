@@ -27,6 +27,8 @@ export interface DMPromise {
   jarId?: string;
   /** Sandbox (Beta test mode) promises never mix with real ones. */
   sandbox?: boolean;
+  /** Last time a gentle check-in was shown or set aside (never shown to the user as days). */
+  checkinAt?: string;
 }
 
 /** An orb keeps the look it had when it dropped in: changing the theme never touches it. */

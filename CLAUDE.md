@@ -1,4 +1,4 @@
-# Dear Me, 0.6
+# Dear Me, 0.7
 
 Self-trust PWA by Innova Space: make small promises to yourself; every promise you keep becomes a glowing orb in a jar. 12 orbs fill a jar; sealed jars live on the Shelf exactly as they were. Standalone self-care app: **no links or shared data with Nudge!, Noggin? or Drift** (only the Innova Space passkey for sign-in, Phase 9).
 
@@ -24,7 +24,7 @@ Vite + TypeScript (no framework), Dexie over IndexedDB (`src/db`), vite-plugin-p
 - Copy: gentle, short, Taglish allowed where the Bible uses it.
 
 ## Build phases (Bible › Tech)
-1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up ✅ · 6. Onboarding ✅ · 7. Settings, Insights, reminders, full Beta test mode · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
+1. Foundation ✅ · 2. Jar engine + particles (+ Beta sandbox and unlock-all) ✅ · 3. Promises: tap options, hold to keep, Edit, Refine, Release ✅ · 4. Seal, Shelf, rename, jar detail, tap an orb ✅ · 5. Levels (3/8/15/24/36) + Jar and what's inside + level-up ✅ · 6. Onboarding ✅ · 7. Settings, Insights, reminders (setting; delivery via push in 9), full Beta test mode ✅ · 8. Offline safety check + hotlines (PH: NCMH 1553) · 9. Passkey, sync, merge · 10. Gentle Help (Claude API, secret ANTHROPIC_API_KEY)
 
 ## Beta test mode
 Settings › About › tap the version 7 times. Sandbox jar (`sandbox: true` rows never mix with real ones), unlock all, animation replays. Remove or hide before public launch.
@@ -44,3 +44,7 @@ Level from real kept promises (sandbox never levels up). Each level 2–6 opens 
 
 ## Onboarding (`src/ui/onboarding.ts`)
 Welcome (empty jar, wordmark, tagline) → How it works → What's hard (chips, saved to `settings.hard`) → What gets in the way (saved to `settings.blocks`) → Gentle Help (Allow / Not now → `settings.gentleHelp`) → Your first promise (ideas from the hard picks) → Home. Skip on steps 1–3 goes straight to Home. Beta: Replay onboarding. The Welcome "Sign in" link comes with Phase 9.
+
+## Settings, Insights, check-ins (`src/ui/shell.ts`, `src/ui/insights.ts`, `src/logic/checkins.ts`, `src/logic/backup.ts`)
+Settings: profile · Your jar (Jar and what's inside, Insights) · Greeting · Gentle Help (suggestions switch, gentle check-ins) · Reminders (evening time; notifications are delivered by Web Push from Phase 9) · Account (passkey later, Export my jars = JSON) · About (feedback@innovaspace.app, version). Insights: Kept / Made smaller / Released totals and lists (released = choices, never failures), jar summaries. Gentle check-in: an active promise with no change for ~3 days shows one soft card ("Parang mabigat 'to ngayon."), "Ano'ng humaharang?" chips → help that fits (Make it smaller / Change the words / Release); Not now = quiet ~7 days (`checkinAt`). Days are never shown. Jar neck: no line across the cork; the front lip shows fully only while the lid is up.
+Beta extras: show a check-in now, clear the sandbox, replay onboarding, show a level-up card.

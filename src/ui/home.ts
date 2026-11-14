@@ -10,6 +10,7 @@ import { dateRange, keptDate, promisesOf, renameJar, sealJar } from '../logic/se
 import { renameSheet } from './shelf';
 import { db, updateSettings } from '../db/db';
 import { pendingLevelUp } from '../logic/unlocks';
+import { BLOCK_HELP, promiseNeedingCheckin, setAside } from '../logic/checkins';
 import { showLevelUp } from './levelup';
 import { activePromises, editPromise, jarIsFull, keepPromise, makePromise, MAX_LEN, refinePromise, releasePromise } from '../logic/promises';
 import { esc, headerDate, reducedMotion } from '../lib/util';
@@ -39,7 +40,12 @@ export async function homeView(): Promise<string> {
 async function slotsHTML(): Promise<string> {
   const [list, slots, full] = [await activePromises(), await slotCount(), await jarIsFull()];
   const compact = slots > 1 && list.length > 1;
-  let html = list.map((p) => card(p, compact)).join('');
+  let force = false; try { force = !!localStorage.getItem('dearme-force-checkin'); localStorage.removeItem('dearme-force-checkin'); } catch { /* none */ }
+  const ci = await promiseNeedingCheckin(force);
+  let html = ci ? `<div class="checkin card" data-ci="${ci.id}"><span class="serif ci-t">Parang mabigat \u2019to ngayon.</span>
+    <span class="muted">\u201c${esc(ci.text)}\u201d \u00b7 Gusto mo bang paliitin muna?</span>
+    <div class="ci-actions"><button class="chip on" data-ci-look>Let\u2019s look</button><button class="chip" data-ci-later>Not now</button></div></div>` : '';
+  html += list.map((p) => card(p, compact)).join('');
   if (full) html += `<div class="slot-note card"><span class="serif" style="font-size:20px">Your jar is full.</span><span class="muted" style="font-size:14px">Twelve times you kept your word. Seal this chapter and give it a name.</span><button class="btn" data-act="seal" style="margin-top:8px">Seal this jar</button></div>`;
   else if (list.length < slots) html += `<button class="slot-empty" data-act="new"><span class="plus">${svg(icon.plus, 20, 2)}</span>
     <span><span class="serif t" style="display:block">I promise myself…</span><span class="s">${list.length ? 'You have room for one more.' : 'Your slot is free. Make a promise.'}</span></span></button>`;
@@ -84,6 +90,12 @@ function wireSlots(): void {
   root.querySelector('[data-act="new"]')?.addEventListener('click', () => promiseSheet());
   root.querySelector('[data-act="seal"]')?.addEventListener('click', () => void sealSheet());
   root.querySelectorAll<HTMLButtonElement>('.promise').forEach(wireHold);
+  const ci = root.querySelector<HTMLElement>('[data-ci]');
+  if (ci) {
+    const id = ci.dataset.ci!;
+    ci.querySelector('[data-ci-later]')!.addEventListener('click', async () => { await setAside(id); ci.remove(); });
+    ci.querySelector('[data-ci-look]')!.addEventListener('click', () => void checkinSheet(id));
+  }
 }
 
 /* ---------- hold to keep ---------- */
@@ -207,6 +219,29 @@ function releaseSheet(p: DMPromise): void {
       setMirror('Released. That’s allowed.'); toast('Released. Your slot is free.'); void refreshSlots();
     });
   }, 'Release promise');
+}
+
+/* ---------- gentle check-in: one question, help that fits the answer ---------- */
+async function checkinSheet(id: string): Promise<void> {
+  const p = (await activePromises()).find((x) => x.id === id);
+  if (!p) return;
+  await setAside(id);
+  openSheet(`<p class="serif sheet-title">Ano\u2019ng humaharang?</p>
+<p class="from">${esc(p.text)}</p>
+<div class="chips">${Object.keys(BLOCK_HELP).map((k) => `<button class="chip" data-blk="${esc(k)}" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
+<div class="ci-help" hidden><p class="sheet-copy" id="cih"></p><button class="btn" id="ci-go"></button></div>
+<button class="btn-text" id="ci-keep" style="align-self:center">Keep it as it is</button>`, (el, close) => {
+    let act: 'refine' | 'edit' | 'release' = 'refine';
+    el.querySelectorAll<HTMLButtonElement>('[data-blk]').forEach((b) => b.addEventListener('click', () => {
+      el.querySelectorAll('[data-blk]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      const h = BLOCK_HELP[b.dataset.blk!]; act = h.act;
+      el.querySelector<HTMLElement>('.ci-help')!.hidden = false;
+      el.querySelector('#cih')!.textContent = h.say;
+      el.querySelector('#ci-go')!.textContent = act === 'refine' ? 'Make it smaller' : act === 'edit' ? 'Change the words' : 'Release it';
+    }));
+    el.querySelector('#ci-keep')!.addEventListener('click', () => { close(); void refreshSlots(); });
+    el.querySelector('#ci-go')!.addEventListener('click', () => { close(); setTimeout(() => { if (act === 'refine') refineSheet(p); else if (act === 'edit') promiseSheet(p); else releaseSheet(p); }, 220); void refreshSlots(); });
+  }, 'Gentle check-in');
 }
 
 /* ---------- tap an orb: its promise and the day it was kept ---------- */

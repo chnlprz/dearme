@@ -6,6 +6,8 @@ import { INSIDES, JAR_STYLES, unmountJar } from '../jar/engine';
 import { dropTestOrb, homeView, startHome } from './home';
 import { jarDetailView, shelfView, startJarDetail, startShelf } from './shelf';
 import { customizeView, startCustomize } from './customize';
+import { insightsView, startInsights } from './insights';
+import { exportAll } from '../logic/backup';
 import { showLevelUp } from './levelup';
 import { startOnboarding } from './onboarding';
 import { levelInfo, newUnlocks, unlocksAt } from '../logic/unlocks';
@@ -14,12 +16,12 @@ import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
 let openJar: string | null = null;
-let sub: 'customize' | null = null;
+let sub: 'customize' | 'insights' | null = null;
 
 export function startShell(el: HTMLElement): void {
   root = el;
@@ -31,7 +33,7 @@ export function startShell(el: HTMLElement): void {
 
 export async function render(): Promise<void> {
   const view = tab === 'jar' ? await homeView()
-    : tab === 'shelf' ? (openJar ? await jarDetailView(openJar) : await shelfView()) : sub === 'customize' ? await customizeView() : await settingsView();
+    : tab === 'shelf' ? (openJar ? await jarDetailView(openJar) : await shelfView()) : sub === 'customize' ? await customizeView() : sub === 'insights' ? await insightsView() : await settingsView();
   unmountJar();
   root.innerHTML = `<div class="shell"><main class="view" id="main">${view}</main>${tabbar()}</div>`;
   showParticles(tab !== 'settings');
@@ -40,6 +42,7 @@ export async function render(): Promise<void> {
   if (tab === 'shelf' && !openJar) await startShelf(root, (id) => { openJar = id; void render(); window.scrollTo(0, 0); });
   if (tab === 'shelf' && openJar) await startJarDetail(root, openJar, () => { openJar = null; void render(); }, () => void render());
   if (tab === 'settings' && sub === 'customize') await startCustomize(root, () => { sub = null; void render(); }, () => void render());
+  if (tab === 'settings' && sub === 'insights') await startInsights(root, () => { sub = null; void render(); }, () => void render());
 }
 
 function tabbar(): string {
@@ -60,25 +63,37 @@ async function settingsView(): Promise<string> {
   return `<h1 class="serif title">Settings</h1>
 <div class="groups">
   <div class="profile card"><span class="avatar" aria-hidden="true">${esc((s.name || 'Me').slice(0, 1).toUpperCase())}</span>
-    <span class="pinfo"><span class="pname">${esc(s.name || 'Dear Me,')}</span><span class="muted">Level ${li.level} · ${li.kept} promises kept${s.sandbox ? ' (sandbox)' : ''}</span>
+    <span class="pinfo"><span class="pname">${esc(s.name || 'Dear Me,')}</span><span class="muted">Level ${li.level} · ${li.kept} ${li.kept === 1 ? 'promise' : 'promises'} kept${s.sandbox ? ' (sandbox)' : ''}</span>
     ${li.next != null ? `<span class="pbar" aria-hidden="true"><i style="width:${Math.round(((li.kept - LEVEL_AT[li.level - 1]) / (li.next - LEVEL_AT[li.level - 1])) * 100)}%"></i></span><span class="pnext">${li.toNext} more to Level ${li.level + 1} · ${esc(nextTxt)}</span>` : '<span class="pnext">Every look is open.</span>'}</span></div>
   <div class="group"><span class="label">Your jar</span><div class="rows">
-    <button class="row" data-go="customize"><span><span class="t">Jar and what’s inside</span><span class="d">${jarName} · ${insideName}</span></span>
+    <button class="row" data-go="customize"><span><span class="t">Jar and what\u2019s inside</span><span class="d">${jarName} · ${insideName}</span></span>
       <span class="row-r">${fresh ? `<span class="badge-new">${fresh} NEW</span>` : ''}${svg(icon.chev, 18)}</span></button>
+    <button class="row" data-go="insights"><span><span class="t">Insights</span><span class="d">Kept, made smaller and released · jar summaries</span></span>${svg(icon.chev, 18)}</button>
   </div></div>
   <div class="group"><span class="label">Greeting</span><div class="rows">
     ${row('Use my name', s.name ? `Shows "Dear ${esc(s.name)}," instead of "Dear Me,"` : 'Add your name below first', sw('useName', s.useName, 'Use my name'))}
     <label class="row" for="nm"><span class="t">Name</span><input id="nm" value="${esc(s.name)}" maxlength="24" placeholder="Your name" autocomplete="given-name"
       style="background:none;border:0;text-align:right;color:var(--ink);font-size:15px;width:55%"></label>
   </div></div>
-  <div class="group"><span class="label">Coming next</span><div class="rows">
-    ${row('Insights', 'Phase 7', '')}${row('Gentle Help', 'Phase 10', '')}${row('Sign in with passkey', 'Phase 9', '')}
+  <div class="group"><span class="label">Gentle Help</span><div class="rows">
+    ${row('Suggest smaller steps', 'Only when you ask. Nothing is added unless you accept it. (Coming soon)', sw('gentleHelp', s.gentleHelp, 'Suggest smaller steps'))}
+    ${row('Gentle check-ins', 'When a promise feels heavy, one soft question', sw('checkins', s.checkins, 'Gentle check-ins'))}
+  </div></div>
+  <div class="group"><span class="label">Reminders</span><div class="rows">
+    ${row('Evening reminder', '\u201cYour promises are here.\u201d Notifications arrive with sign-in.', sw('reminderOn', !!s.reminder, 'Evening reminder'))}
+    ${s.reminder ? `<label class="row" for="rt"><span class="t">Time</span><input id="rt" type="time" value="${s.reminder}" class="pick" style="color:var(--ink)"></label>` : ''}
+  </div></div>
+  <div class="group"><span class="label">Account</span><div class="rows">
+    ${row('Sign in with passkey', 'Optional. Your jar stays on this phone until you sign in. (Coming soon)', '')}
+    <button class="row" data-act="export"><span><span class="t">Export my jars</span><span class="d">A file with every promise, orb and jar</span></span>${svg(icon.chev, 18)}</button>
   </div></div>
   ${s.beta ? `<div class="group"><span class="label">Beta test mode</span><div class="rows">
     ${row('Sandbox jar', 'A separate test jar. Your real promises stay safe.', sw('sandbox', s.sandbox, 'Sandbox jar'))}
     ${row('Unlock everything', 'All jars and insides, any level', sw('unlockAll', s.unlockAll, 'Unlock everything'))}
     <label class="row" for="b-style"><span class="t">Jar</span><select id="b-style" class="pick">${JAR_STYLES.map((j) => `<option value="${j.id}" ${j.id === s.style ? 'selected' : ''}>${j.name} · Level ${j.level}</option>`).join('')}</select></label>
     <label class="row" for="b-inside"><span class="t">What's inside (next orbs)</span><select id="b-inside" class="pick">${INSIDES.map((i) => `<option value="${i.id}" ${i.id === s.inside ? 'selected' : ''}>${i.name} · Level ${i.level}</option>`).join('')}</select></label>
+    <button class="row" data-beta="checkin"><span class="t">Show a gentle check-in now</span>${svg(icon.chev, 18)}</button>
+    <button class="row" data-beta="clear"><span><span class="t">Clear the sandbox</span><span class="d">Removes every sandbox promise, orb and jar</span></span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="onb"><span class="t">Replay onboarding</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="lvl"><span class="t">Show a level-up card (Level 4)</span>${svg(icon.chev, 18)}</button>
     <button class="row" data-beta="drop"><span class="t">Drop a test orb</span>${svg(icon.chev, 18)}</button>
@@ -87,6 +102,7 @@ async function settingsView(): Promise<string> {
     ${row('Beta test mode', 'Turn off to hide this section', sw('beta', true, 'Beta test mode'))}
   </div></div>` : ''}
   <div class="group"><span class="label">About</span><div class="rows">
+    <a class="row" href="mailto:feedback@innovaspace.app?subject=Dear%20Me%20feedback"><span><span class="t">Send feedback</span><span class="d">feedback@innovaspace.app</span></span>${svg(icon.chev, 18)}</a>
     <button class="row" data-act="version"><span><span class="t">Dear Me, by Innova Space</span><span class="d">Version ${VERSION}</span></span></button>
   </div></div>
   <p class="copyright">© 2026 Innova Space</p>
@@ -101,13 +117,17 @@ function wire(): void {
     void render(); window.scrollTo(0, 0);
   }));
   root.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) => b.addEventListener('click', async () => {
-    const key = b.dataset.switch as 'useName' | 'beta' | 'sandbox' | 'unlockAll';
+    const key = b.dataset.switch as 'useName' | 'beta' | 'sandbox' | 'unlockAll' | 'gentleHelp' | 'checkins' | 'reminderOn';
     const s = await getSettings();
     if (key === 'useName' && !s.name) { toast('Add your name first.'); return; }
+    if (key === 'reminderOn') { await updateSettings({ reminder: s.reminder ? null : '21:00' }); void render(); return; }
     await updateSettings({ [key]: !s[key] } as never);
     void render();
   }));
   root.querySelector('[data-go="customize"]')?.addEventListener('click', () => { sub = 'customize'; void render(); window.scrollTo(0, 0); });
+  root.querySelector('[data-go="insights"]')?.addEventListener('click', () => { sub = 'insights'; void render(); window.scrollTo(0, 0); });
+  root.querySelector<HTMLInputElement>('#rt')?.addEventListener('change', async (e) => { const v = (e.target as HTMLInputElement).value; if (v) await updateSettings({ reminder: v }); });
+  root.querySelector('[data-act="export"]')?.addEventListener('click', () => void exportAll());
   root.querySelector<HTMLInputElement>('#nm')?.addEventListener('change', async (e) => {
     const name = (e.target as HTMLInputElement).value.trim().slice(0, 24);
     await updateSettings({ name, ...(name ? {} : { useName: false }) });
@@ -130,6 +150,14 @@ function wire(): void {
   });
   root.querySelectorAll<HTMLButtonElement>('[data-beta]').forEach((b) => b.addEventListener('click', async () => {
     const act = b.dataset.beta, jar = await activeJar();
+    if (act === 'checkin') { const s = await getSettings(); if (!(await db.promises.filter((p) => p.status === 'active' && !!p.sandbox === s.sandbox).count())) { toast('Make a promise first.'); return; } localStorage.setItem('dearme-force-checkin', '1'); tab = 'jar'; void render(); return; }
+    if (act === 'clear') {
+      const sj = await db.jars.filter((j) => !!j.sandbox).primaryKeys();
+      await db.transaction('rw', db.jars, db.orbs, db.promises, async () => {
+        await db.orbs.filter((o) => !!o.sandbox || sj.includes(o.jarId)).delete(); await db.promises.filter((p) => !!p.sandbox).delete(); await db.jars.bulkDelete(sj);
+      });
+      toast('Sandbox cleared.'); void render(); return;
+    }
     if (act === 'onb') { unmountJar(); void startOnboarding(root, () => { tab = 'jar'; void render(); }); return; }
     if (act === 'lvl') { showLevelUp(4, () => root.dispatchEvent(new CustomEvent('dearme:customize'))); return; }
     if (act === 'drop') { tab = 'jar'; await render(); setTimeout(() => void dropTestOrb(), 350); return; }

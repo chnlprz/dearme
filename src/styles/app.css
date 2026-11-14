@@ -234,3 +234,32 @@
 .gh { display: flex; flex-direction: column; gap: 10px; }
 .gh-say { border-left: 2px solid var(--orchid); padding: 6px 0 6px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.45; }
 .gh-say .who { font-size: 12px; color: var(--orchid); }
+
+/* ---------- gentle check-in ---------- */
+.checkin { display: flex; flex-direction: column; gap: 6px; border-color: var(--orchid); background: rgba(215,155,255,.10); border-radius: 18px; font-size: 13px; }
+.checkin .ci-t { font-size: 19px; }
+.ci-actions { display: flex; gap: 8px; margin-top: 4px; }
+.ci-help { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- insights ---------- */
+.ins { padding: 10px 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+.tiles { display: flex; gap: 10px; }
+.tiles .tile { flex: 1; padding: 14px 12px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.tiles .n { font-family: var(--wordmark); font-weight: 500; font-variation-settings: 'opsz' 11; font-size: 30px; line-height: 1.1; }
+.n.gold { color: var(--gold); } .n.orchid { color: var(--orchid); } .n.pink { color: var(--pink); }
+.small { font-size: 13px; margin: 0; }
+.seg { display: flex; padding: 4px; border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--line); }
+.seg button { flex: 1; min-height: 38px; border: 0; border-radius: var(--r-pill); background: none; color: var(--muted); font-size: 13px; }
+.seg button[aria-selected="true"] { background: var(--gold); color: var(--on-gold); font-weight: 600; }
+.ins-list { list-style: none; margin: 0; padding: 0; }
+.ins-list li { padding: 12px 2px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.ins-list .was { font-size: 13px; color: var(--muted); }
+.ins-list .line { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+.ins-list .st { font-size: 12px; color: var(--muted); flex: none; }
+.ins-list .st.gold { color: var(--gold); }
+.ins-h { margin: 8px 0 0; font-size: 22px; }
+.sum { display: flex; gap: 14px; align-items: center; padding: 10px 12px; }
+.sum > span { display: flex; flex-direction: column; gap: 3px; }
+.sum .l { font-size: 17px; }
+.sum .d { font-size: 13px; }
+a.row { text-decoration: none; }
