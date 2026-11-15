@@ -20,7 +20,7 @@ import type { InsideId, JarStyleId } from '../db/types';
 import { icon, svg, toast } from './kit';
 import { showParticles } from './particles';
 
-export const VERSION = '0.9.0';
+export const VERSION = '0.10.0';
 type Tab = 'jar' | 'shelf' | 'settings';
 let root: HTMLElement;
 let tab: Tab = 'jar';
@@ -83,7 +83,7 @@ async function settingsView(): Promise<string> {
       style="background:none;border:0;text-align:right;color:var(--ink);font-size:15px;width:55%"></label>
   </div></div>
   <div class="group"><span class="label">Gentle Help</span><div class="rows">
-    ${row('Suggest smaller steps', 'Only when you ask. Nothing is added unless you accept it. (Coming soon)', sw('gentleHelp', s.gentleHelp, 'Suggest smaller steps'))}
+    ${row('Suggest smaller steps', cloud.get().signedIn ? 'Only when you ask. Nothing is added unless you pick it. Gentle Help keeps nothing you write.' : 'Needs sign-in and internet. Only when you ask; it keeps nothing you write.', sw('gentleHelp', s.gentleHelp, 'Suggest smaller steps'))}
     ${row('Gentle check-ins', 'When a promise feels heavy, one soft question', sw('checkins', s.checkins, 'Gentle check-ins'))}
   </div></div>
   <div class="group"><span class="label">Reminders</span><div class="rows">

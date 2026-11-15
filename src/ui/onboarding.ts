@@ -4,8 +4,9 @@ import { getSettings, updateSettings } from '../db/db';
 import { drawStillJar } from '../jar/engine';
 import { makePromise, MAX_LEN } from '../logic/promises';
 import { safeToSave, wireSoftNote } from './safety';
+import { wireGentleHelp } from './gentle';
 import { esc } from '../lib/util';
-import { friendlyError, signInWithPasskey, syncNow } from '../lib/cloud';
+import { cloud, friendlyError, signInWithPasskey, syncNow } from '../lib/cloud';
 import { toast } from './kit';
 import { showParticles } from './particles';
 
@@ -108,7 +109,8 @@ function firstStep(): void {
   const sync = () => { go.disabled = !ta.value.trim(); }; sync();
   ta.addEventListener('input', sync); wireSoftNote(ta);
   root.querySelectorAll<HTMLButtonElement>('[data-i]').forEach((c) => c.addEventListener('click', () => { ta.value = c.dataset.i!; sync(); }));
-  on('[data-next]', async () => { const t = ta.value.trim(); if (!t) return; const save = async () => { await makePromise(t); await finish(); }; if (safeToSave(t, () => void save())) await save(); });
+  if (cloud.get().signedIn) void wireGentleHelp(root.querySelector('.chips') ?? ta, ta, { mode: 'first', hard, onSignIn: () => toast('Sign in from Settings › Account after this. Your promise is safe here.') });
+  on('[data-next]', async () => { const t = ta.value.trim(); if (!t) return; const save = async () => { await makePromise(t, ta.dataset.from); await finish(); }; if (safeToSave(t, () => void save())) await save(); });
   on('[data-second]', () => void finish());
 }
 

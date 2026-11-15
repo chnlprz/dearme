@@ -16,12 +16,15 @@ export async function activePromises(): Promise<DMPromise[]> {
 
 const step = (kind: StoryStep['kind'], extra: Partial<StoryStep> = {}): StoryStep => ({ at: nowISO(), kind, ...extra });
 
-export async function makePromise(text: string): Promise<DMPromise> {
+/** `from` = the first wording, when Gentle Help offered a smaller version before saving (kept as "Made smaller from"). */
+export async function makePromise(text: string, from?: string): Promise<DMPromise> {
   assertSafe(text);
   const s = await getSettings();
+  const first = from?.trim() && from.trim() !== text.trim() ? from.trim().slice(0, MAX_LEN) : '';
   const p: DMPromise = {
     id: uid(), text: text.trim().slice(0, MAX_LEN), status: 'active', createdAt: nowISO(), updatedAt: nowISO(),
-    story: [step('made', { text: text.trim() })], ...(s.sandbox ? { sandbox: true } : {}),
+    story: first ? [step('made', { text: first }), step('refined', { text: text.trim() })] : [step('made', { text: text.trim() })],
+    ...(first ? { refinedFrom: first } : {}), ...(s.sandbox ? { sandbox: true } : {}),
   };
   await db.promises.put(p);
   return p;

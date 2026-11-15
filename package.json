@@ -1,6 +1,6 @@
 {
   "name": "dearme",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Dear Me, · A jar of kept promises to yourself. A self-trust PWA by Innova Space.",
   "scripts": {
     "dev": "vite",

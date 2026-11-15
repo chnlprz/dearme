@@ -11,6 +11,7 @@ interface Env {
   ASSETS: Fetcher;
   DB: D1Database; // the shared `nudge` database
   RP_ID: string;
+  ANTHROPIC_API_KEY?: string; // secret: Gentle Help (Phase 10)
 }
 
 const COOKIE = 'dearme_s';
@@ -37,6 +38,8 @@ function schema(db: D1Database) {
     db.prepare('CREATE INDEX IF NOT EXISTS dm_rows_rev ON dm_rows (user_id, rev)'),
     db.prepare('CREATE TABLE IF NOT EXISTS dm_push (endpoint TEXT PRIMARY KEY, p256dh TEXT, auth TEXT, tz TEXT, time TEXT, last_day TEXT, created_at INTEGER)'),
     db.prepare('CREATE TABLE IF NOT EXISTS dm_meta (k TEXT PRIMARY KEY, v TEXT)'),
+    // Gentle Help use per person per UTC day (a count only: what you write is never stored)
+    db.prepare('CREATE TABLE IF NOT EXISTS dm_ai_use (user_id TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day))'),
   ]).catch((e) => { ready = null; throw e; });
   return ready;
 }
@@ -132,6 +135,58 @@ async function reminders(env: Env): Promise<void> {
   }
 }
 
+/* ───────────── Gentle Help (Bible › AI: the friction detective) ───────────── */
+const HELP_MODEL = 'claude-haiku-5-5';
+const HELP_DAILY = 40;
+const HELP_SYSTEM = `You are Gentle Help inside "Dear Me,", a self-trust app. People make small promises to themselves; every promise they keep becomes a glowing orb in a jar. You are a friction detective: you help the person understand what makes a promise hard, then offer smaller versions they could keep today. Suggestions are only options; the person stays in charge and the win is theirs.
+
+How you talk:
+- Warm, plain and short. Mirror the person's language: English, Tagalog or Taglish.
+- Never guilt, pressure or urgency. Never use: overdue, late, streak, should, must, fail, lazy, discipline.
+- Never diagnose. Barriers are possibilities only: friction, motivation, ability, prompt (forgetting), fear.
+- No medical, diet, weight or exercise numbers. No emojis.
+
+What you suggest:
+- 2 or 3 smaller versions of the promise, each doable today in about 10 minutes or less, first person, starting with a verb, at most 9 words, specific, gentle. Keep the person's own topic and words where you can.
+- "I won't ..." promises: turn them into an action or a time box (for example "I won't message them this weekend").
+- Abstract promises like "Do not give up": ask one gentle question first in "ask", and still offer concrete first steps.
+- If fear may be the block, you may ask: "Kung sigurado kang hindi ka papalpak, gagawin mo ba 'to ngayon?" Fear gets less exposure (draft without sending, tell one safe person); practical friction gets less effort (attach it to a routine, a 5-minute timer, set things out the night before).
+- Respond to what is in the way when it is given.
+
+Safety comes first: if anything suggests self-harm, suicide or not wanting to live, set "safety" to "crisis"; if someone is hurting them, set "abuse". In both cases "say" is one caring line, "ask" is empty and "options" is empty.
+
+Reply with JSON only, no other text:
+{"say": "one short warm line, max 18 words", "ask": "one gentle question, or empty", "options": ["...", "..."], "safety": "none" | "crisis" | "abuse"}`;
+
+async function gentleHelp(env: Env, uid: string, body: any): Promise<Response> {
+  if (!env.ANTHROPIC_API_KEY) return oops(503, 'help-off');
+  const day = new Date().toISOString().slice(0, 10);
+  const used = (await env.DB.prepare('SELECT n FROM dm_ai_use WHERE user_id = ? AND day = ?').bind(uid, day).first<{ n: number }>())?.n ?? 0;
+  if (used >= HELP_DAILY) return oops(429, 'rest');
+  const clip = (v: unknown, n: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const text = clip(body.text, 200);
+  if (!text) return oops(400, 'empty');
+  const lines = [`Promise: "${text}"`];
+  if (body.block) lines.push(`What's in the way: ${clip(body.block, 60)}`);
+  if (Array.isArray(body.hard) && body.hard.length) lines.push(`What they said feels hard lately: ${body.hard.slice(0, 6).map((x: unknown) => clip(x, 40)).join(', ')}`);
+  if (body.ask && body.answer) lines.push(`You asked: "${clip(body.ask, 200)}"`, `They answered: "${clip(body.answer, 300)}"`);
+  lines.push(body.mode === 'first' ? 'This is their very first promise in the app.' : body.mode === 'stuck' ? 'This promise has felt heavy lately.' : 'They asked for help making it smaller.');
+  await env.DB.prepare('INSERT INTO dm_ai_use (user_id, day, n) VALUES (?, ?, 1) ON CONFLICT (user_id, day) DO UPDATE SET n = n + 1').bind(uid, day).run();
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: HELP_MODEL, max_tokens: 400, system: HELP_SYSTEM, messages: [{ role: 'user', content: lines.join('\n') }] }),
+  });
+  if (!res.ok) return oops(502, 'help-failed');
+  const data = await res.json<{ content?: { type: string; text?: string }[] }>();
+  const raw = (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+  let out: { say?: unknown; ask?: unknown; options?: unknown; safety?: unknown } = {};
+  try { out = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch { return oops(502, 'help-failed'); }
+  const safety = out.safety === 'crisis' || out.safety === 'abuse' ? out.safety : 'none';
+  const options = safety !== 'none' || !Array.isArray(out.options) ? [] : out.options.map((o) => clip(o, 120)).filter(Boolean).slice(0, 3);
+  return json({ say: clip(out.say, 200), ask: safety === 'none' ? clip(out.ask, 200) : '', options, safety });
+}
+
 async function api(req: Request, env: Env, url: URL): Promise<Response> {
   await schema(env.DB);
   const path = url.pathname.slice(4);
@@ -216,6 +271,9 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
   }
 
   if (!uid) return oops(401, 'signed-out');
+
+  // ── Gentle Help: needs sign-in and internet; called only when the person asks ──
+  if (path === '/help') return gentleHelp(env, uid, body);
 
   // ── Sync: push changed rows, then pull everything newer than `since` (same protocol as Nudge! and Noggin?) ──
   if (path === '/sync') {

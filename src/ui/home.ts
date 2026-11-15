@@ -13,6 +13,8 @@ import { pendingLevelUp } from '../logic/unlocks';
 import { BLOCK_HELP, promiseNeedingCheckin, setAside } from '../logic/checkins';
 import { showLevelUp } from './levelup';
 import { safeToSave, wireSoftNote } from './safety';
+import { wireGentleHelp } from './gentle';
+import { signInSheet } from './shell';
 import { activePromises, editPromise, jarIsFull, keepPromise, makePromise, MAX_LEN, refinePromise, releasePromise } from '../logic/promises';
 import { esc, headerDate, reducedMotion } from '../lib/util';
 import { icon, svg, toast } from './kit';
@@ -179,16 +181,17 @@ ${editing ? '' : `<span class="field-label">Small is good. Ideas:</span><div cla
     const ta = el.querySelector<HTMLTextAreaElement>('#ptext')!, save = el.querySelector<HTMLButtonElement>('#psave')!;
     const sync = () => { save.disabled = !ta.value.trim(); };
     ta.addEventListener('input', sync); wireSoftNote(ta);
+    if (!editing) void wireGentleHelp(el.querySelector('.chips') ?? ta, ta, { mode: 'smaller', onSignIn: () => { close(); setTimeout(() => signInSheet(), 220); } });
     el.querySelectorAll<HTMLButtonElement>('[data-idea]').forEach((c) => c.addEventListener('click', () => { ta.value = c.dataset.idea!; sync(); ta.focus(); }));
     save.addEventListener('click', async () => {
       const text = ta.value.trim(); if (!text) return;
-      const save = async () => { if (editing) await editPromise(p!.id, text); else { await makePromise(text); setMirror('A new promise. Small and doable.'); } close(); void refreshSlots(); };
+      const save = async () => { if (editing) await editPromise(p!.id, text); else { await makePromise(text, ta.dataset.from); setMirror('A new promise. Small and doable.'); } close(); void refreshSlots(); };
       if (safeToSave(text, () => void save())) await save();
     });
   }, editing ? 'Edit promise' : 'Make a promise');
 }
 
-function refineSheet(p: DMPromise): void {
+function refineSheet(p: DMPromise, block?: string): void {
   openSheet(`<p class="serif sheet-title">Make it smaller</p>
 <p class="sheet-copy">It still matters. It might just need a different shape. What's a version you could keep?</p>
 <p class="from">Now: ${esc(p.text)}</p>
@@ -198,6 +201,7 @@ function refineSheet(p: DMPromise): void {
 <button class="btn" id="rsave">Use this version</button>`, (el, close) => {
     const ta = el.querySelector<HTMLTextAreaElement>('#rtext')!;
     ta.select(); wireSoftNote(ta);
+    void wireGentleHelp(el.querySelector('#rsave')!.previousElementSibling as HTMLElement, ta, { mode: block ? 'stuck' : 'smaller', block, label: 'Suggest smaller versions', auto: !!block, onSignIn: () => { close(); setTimeout(() => signInSheet(), 220); } });
     el.querySelector('#rsave')!.addEventListener('click', async () => {
       const text = ta.value.trim(); if (!text || text === p.text) { close(); return; }
       const save = async () => { await refinePromise(p.id, text); close(); setMirror('Smaller is still a promise.'); void refreshSlots(); };
@@ -233,21 +237,22 @@ async function checkinSheet(id: string): Promise<void> {
   const p = (await activePromises()).find((x) => x.id === id);
   if (!p) return;
   await setAside(id);
+  const gentle = (await getSettings()).gentleHelp;
   openSheet(`<p class="serif sheet-title">Ano\u2019ng humaharang?</p>
 <p class="from">${esc(p.text)}</p>
 <div class="chips">${Object.keys(BLOCK_HELP).map((k) => `<button class="chip" data-blk="${esc(k)}" aria-pressed="false">${esc(k)}</button>`).join('')}</div>
 <div class="ci-help" hidden><p class="sheet-copy" id="cih"></p><button class="btn" id="ci-go"></button></div>
 <button class="btn-text" id="ci-keep" style="align-self:center">Keep it as it is</button>`, (el, close) => {
-    let act: 'refine' | 'edit' | 'release' = 'refine';
+    let act: 'refine' | 'edit' | 'release' = 'refine', blk = '';
     el.querySelectorAll<HTMLButtonElement>('[data-blk]').forEach((b) => b.addEventListener('click', () => {
       el.querySelectorAll('[data-blk]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      const h = BLOCK_HELP[b.dataset.blk!]; act = h.act;
+      const h = BLOCK_HELP[b.dataset.blk!]; act = h.act; blk = b.dataset.blk!;
       el.querySelector<HTMLElement>('.ci-help')!.hidden = false;
       el.querySelector('#cih')!.textContent = h.say;
       el.querySelector('#ci-go')!.textContent = act === 'refine' ? 'Make it smaller' : act === 'edit' ? 'Change the words' : 'Release it';
     }));
     el.querySelector('#ci-keep')!.addEventListener('click', () => { close(); void refreshSlots(); });
-    el.querySelector('#ci-go')!.addEventListener('click', () => { close(); setTimeout(() => { if (act === 'refine') refineSheet(p); else if (act === 'edit') promiseSheet(p); else releaseSheet(p); }, 220); void refreshSlots(); });
+    el.querySelector('#ci-go')!.addEventListener('click', () => { close(); setTimeout(() => { if (act === 'refine') refineSheet(p, gentle ? blk : undefined); else if (act === 'edit') promiseSheet(p); else releaseSheet(p); }, 220); void refreshSlots(); });
   }, 'Gentle check-in');
 }
 
