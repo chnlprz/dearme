@@ -152,7 +152,10 @@ How you talk:
 - No medical, diet, weight or exercise numbers. No emojis.
 
 What you suggest:
-- 2 or 3 smaller versions of the promise, each doable today in about 10 minutes or less, first person, starting with a verb, at most 9 words, specific, gentle. Keep the person's own topic and words where you can.
+- 2 or 3 smaller versions of the promise, each doable today in about 10 minutes or less, starting with a verb, at most 9 words, specific and concrete (what, and when or where), no period at the end. Keep the person's own topic and words. Each option should be a different way in (the first tiny step, a prep step, a cue tied to a routine), not the same idea reworded.
+- If the promise is vague ("Meal prep", "Exercise", "Be productive"), make it concrete: for "Meal prep" think "Pick 3 lunches for this week", "Chop veggies for tomorrow's lunch", "Write a grocery list after dinner".
+- If the promise is already small and concrete, say so warmly in "say" and offer at most 2 tweaks that make starting easier (a cue or a place), not smaller rewordings.
+- "ask": leave it empty unless the promise is abstract or this is a heavy/stuck moment; never ask more than one question.
 - "I won't ..." promises: turn them into an action or a time box (for example "I won't message them this weekend").
 - Abstract promises like "Do not give up": ask one gentle question first in "ask", and still offer concrete first steps.
 - If fear may be the block, you may ask: "Kung sigurado kang hindi ka papalpak, gagawin mo ba 'to ngayon?" Fear gets less exposure (draft without sending, tell one safe person); practical friction gets less effort (attach it to a routine, a 5-minute timer, set things out the night before).
@@ -177,16 +180,21 @@ async function gentleHelp(env: Env, uid: string, body: any): Promise<Response> {
   if (body.ask && body.answer) lines.push(`You asked: "${clip(body.ask, 200)}"`, `They answered: "${clip(body.answer, 300)}"`);
   lines.push(body.mode === 'first' ? 'This is their very first promise in the app.' : body.mode === 'stuck' ? 'This promise has felt heavy lately.' : 'They asked for help making it smaller.');
   await env.DB.prepare('INSERT INTO dm_ai_use (user_id, day, n) VALUES (?, ?, 1) ON CONFLICT (user_id, day) DO UPDATE SET n = n + 1').bind(uid, day).run();
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: HELP_MODEL, max_tokens: 400, system: HELP_SYSTEM, messages: [{ role: 'user', content: lines.join('\n') }] }),
-  });
-  if (!res.ok) return oops(502, 'help-failed');
-  const data = await res.json<{ content?: { type: string; text?: string }[] }>();
-  const raw = (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('');
-  let out: { say?: unknown; ask?: unknown; options?: unknown; safety?: unknown } = {};
-  try { out = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch { return oops(502, 'help-failed'); }
+  // One retry: a busy API or a reply that isn't clean JSON shouldn't leave the person with nothing.
+  let out: { say?: unknown; ask?: unknown; options?: unknown; safety?: unknown } | null = null, why = '';
+  for (let tries = 0; tries < 2 && !out; tries++) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: HELP_MODEL, max_tokens: 600, system: HELP_SYSTEM, messages: [{ role: 'user', content: lines.join('\n') }] }),
+    }).catch((e) => { why = `fetch: ${(e as Error).message}`; return null; });
+    if (!res) continue;
+    if (!res.ok) { why = `api ${res.status}: ${(await res.text()).slice(0, 300)}`; if (res.status === 400 || res.status === 401 || res.status === 404) break; continue; }
+    const data = await res.json<{ content?: { type: string; text?: string }[] }>();
+    const raw = (data.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('').replace(/```(?:json)?/g, '');
+    try { out = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch { why = `parse: ${raw.slice(0, 200)}`; }
+  }
+  if (!out) { console.error('gentle help failed', why); return json({ error: 'help-failed', detail: why.slice(0, 300) }, { status: 502 }); }
   const safety = out.safety === 'crisis' || out.safety === 'abuse' ? out.safety : 'none';
   const options = safety !== 'none' || !Array.isArray(out.options) ? [] : out.options.map((o) => clip(o, 120)).filter(Boolean).slice(0, 3);
   return json({ say: clip(out.say, 200), ask: safety === 'none' ? clip(out.ask, 200) : '', options, safety });

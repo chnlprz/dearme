@@ -116,7 +116,7 @@ function firstStep(): void {
   const sync = () => { go.disabled = !ta.value.trim(); }; sync();
   ta.addEventListener('input', sync); wireSoftNote(ta);
   root.querySelectorAll<HTMLButtonElement>('[data-i]').forEach((c) => c.addEventListener('click', () => { ta.value = c.dataset.i!; sync(); }));
-  if (cloud.get().signedIn) void wireGentleHelp(root.querySelector('.chips') ?? ta, ta, { mode: 'first', hard, onSignIn: () => toast('Sign in from Settings › Account after this. Your promise is safe here.') });
+  if (cloud.get().signedIn) void wireGentleHelp(ta, ta, { mode: 'first', hard, onSignIn: () => toast('Sign in from Settings › Account after this. Your promise is safe here.') });
   on('[data-next]', async () => { const t = ta.value.trim(); if (!t) return; const save = async () => { await makePromise(t, ta.dataset.from); await finish(); }; if (safeToSave(t, () => void save())) await save(); });
   on('[data-second]', () => void finish());
 }

@@ -181,7 +181,7 @@ ${editing ? '' : `<span class="field-label">Small is good. Ideas:</span><div cla
     const ta = el.querySelector<HTMLTextAreaElement>('#ptext')!, save = el.querySelector<HTMLButtonElement>('#psave')!;
     const sync = () => { save.disabled = !ta.value.trim(); };
     ta.addEventListener('input', sync); wireSoftNote(ta);
-    if (!editing) void wireGentleHelp(el.querySelector('.chips') ?? ta, ta, { mode: 'smaller', onSignIn: () => { close(); setTimeout(() => signInSheet(), 220); } });
+    if (!editing) void wireGentleHelp(ta, ta, { mode: 'smaller', onSignIn: () => { close(); setTimeout(() => signInSheet(), 220); } });
     el.querySelectorAll<HTMLButtonElement>('[data-idea]').forEach((c) => c.addEventListener('click', () => { ta.value = c.dataset.idea!; sync(); ta.focus(); }));
     save.addEventListener('click', async () => {
       const text = ta.value.trim(); if (!text) return;

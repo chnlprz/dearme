@@ -4,7 +4,7 @@ import { call, cloud } from './cloud';
 export interface HelpReq { mode: 'smaller' | 'stuck' | 'first'; text: string; block?: string; hard?: string[]; ask?: string; answer?: string }
 export interface HelpRes { say: string; ask: string; options: string[]; safety: 'none' | 'crisis' | 'abuse' }
 
-export async function askGentleHelp(req: HelpReq): Promise<HelpRes | { error: string }> {
+export async function askGentleHelp(req: HelpReq): Promise<HelpRes | { error: string; detail?: string }> {
   if (!cloud.get().signedIn) return { error: 'signed-out' };
   if (!navigator.onLine) return { error: 'Gentle Help needs internet. Your promise still works offline.' };
   try { return await call<HelpRes>('/help', req); }

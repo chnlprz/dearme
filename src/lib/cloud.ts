@@ -20,7 +20,7 @@ export async function call<T = any>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: body === undefined ? {} : { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { cloud.set({ signedIn: false }); throw Object.assign(new Error('signed-out'), { code: 401 }); }
-  if (!res.ok) throw Object.assign(new Error(data.error || 'server'), { code: res.status });
+  if (!res.ok) throw Object.assign(new Error(data.error || 'server'), { code: res.status, detail: data.detail });
   return data as T;
 }
 
