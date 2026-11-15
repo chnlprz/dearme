@@ -25,5 +25,10 @@ const app = document.getElementById('app')!;
   else void startOnboarding(app, () => startShell(app));
   // Sync (when signed in): a change from another device redraws the screen, unless a sheet is open or you're typing.
   startAutoSync(() => { if ((window as { __dmShell?: boolean }).__dmShell && !document.querySelector('.sheet') && !document.activeElement?.matches('input, textarea, select')) void render(); });
+  // iOS: after the keyboard closes, a fixed tab bar can stay lifted. Nudge the page so it settles back down.
+  document.addEventListener('focusout', (e) => {
+    if (!(e.target as HTMLElement).matches?.('input, textarea')) return;
+    setTimeout(() => { if (!document.activeElement?.matches('input, textarea')) window.scrollTo(window.scrollX, window.scrollY); }, 120);
+  });
   if (afterUpdate()) setTimeout(() => toast(`You're on the new Dear Me, ${VERSION}.`), 400);
 })();

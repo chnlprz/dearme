@@ -19,7 +19,9 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "nudge", "database_id": "2a303c20-837b-41ca-a7d1-c759772d1aa4" }
   ],
+  // Feedback copies go to this inbox (a verified destination in Email Routing for innovaspace.app, same as Nudge!).
+  "send_email": [{ "name": "FEEDBACK_MAIL", "destination_address": "hello.innovaspace@gmail.com" }],
   // Every 5 minutes: send the evening reminder to whoever's chosen time just arrived (in their time zone).
   "triggers": { "crons": ["*/5 * * * *"] },
-  "vars": { "RP_ID": "innovaspace.app" }
+  "vars": { "RP_ID": "innovaspace.app", "FEEDBACK_FROM": "dearme@innovaspace.app", "FEEDBACK_TO": "hello.innovaspace@gmail.com" }
 }

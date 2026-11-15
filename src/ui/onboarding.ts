@@ -26,7 +26,14 @@ let root: HTMLElement, done: () => void;
 let hard: string[] = [], blocks: string[] = [];
 
 export async function startOnboarding(el: HTMLElement, onDone: () => void): Promise<void> {
-  root = el; done = onDone;
+  root = el;
+  // Leaving onboarding: drop the keyboard and reset the page, so iOS puts the fixed tab bar back at the very bottom.
+  done = () => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    window.scrollTo(0, 0);
+    onDone();
+    [60, 350, 800].forEach((ms) => setTimeout(() => window.scrollTo(0, 0), ms));
+  };
   const s = await getSettings(); hard = [...s.hard]; blocks = [...s.blocks];
   showParticles(true);
   welcome();

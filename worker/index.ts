@@ -6,12 +6,16 @@
 import {
   generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse,
 } from '@simplewebauthn/server';
+import { EmailMessage } from 'cloudflare:email';
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database; // the shared `nudge` database
   RP_ID: string;
   ANTHROPIC_API_KEY?: string; // secret: Gentle Help (Phase 10)
+  FEEDBACK_MAIL?: SendEmail;
+  FEEDBACK_FROM: string;
+  FEEDBACK_TO: string;
 }
 
 const COOKIE = 'dearme_s';
@@ -39,6 +43,7 @@ function schema(db: D1Database) {
     db.prepare('CREATE TABLE IF NOT EXISTS dm_push (endpoint TEXT PRIMARY KEY, p256dh TEXT, auth TEXT, tz TEXT, time TEXT, last_day TEXT, created_at INTEGER)'),
     db.prepare('CREATE TABLE IF NOT EXISTS dm_meta (k TEXT PRIMARY KEY, v TEXT)'),
     // Gentle Help use per person per UTC day (a count only: what you write is never stored)
+    db.prepare('CREATE TABLE IF NOT EXISTS dm_feedback (id TEXT PRIMARY KEY, created_at INTEGER, user_id TEXT, kind TEXT, message TEXT, reply_to TEXT, info TEXT, version TEXT, ip TEXT, mailed INTEGER DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS dm_ai_use (user_id TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day))'),
   ]).catch((e) => { ready = null; throw e; });
   return ready;
@@ -187,6 +192,23 @@ async function gentleHelp(env: Env, uid: string, body: any): Promise<Response> {
   return json({ say: clip(out.say, 200), ask: safety === 'none' ? clip(out.ask, 200) : '', options, safety });
 }
 
+const mimeWord = (s: string) => `=?UTF-8?B?${btoa(String.fromCharCode(...enc.encode(s)))}?=`;
+async function mailFeedback(env: Env, f: { id: string; kind: string; message: string; replyTo: string; info: string; version: string; signedIn: boolean }): Promise<boolean> {
+  if (!env.FEEDBACK_MAIL) return false;
+  try {
+    const text = `${f.message}\n\n—\nKind: ${f.kind}\nVersion: ${f.version || '?'} · ${f.signedIn ? 'signed in' : 'not signed in'}\nReply to: ${f.replyTo || 'not given'}\n${f.info ? `\n${f.info}\n` : ''}\nFeedback id: ${f.id}`;
+    const raw = [
+      `From: ${mimeWord('Dear Me, feedback')} <${env.FEEDBACK_FROM}>`, `To: <${env.FEEDBACK_TO}>`,
+      ...(f.replyTo ? [`Reply-To: <${f.replyTo}>`] : []),
+      `Subject: ${mimeWord(`Dear Me, ${f.version} · ${f.kind}`)}`, `Message-ID: <${f.id}@innovaspace.app>`, `Date: ${new Date().toUTCString()}`,
+      'MIME-Version: 1.0', 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '',
+      btoa(String.fromCharCode(...enc.encode(text))).replace(/.{76}/g, '$&\r\n'),
+    ].join('\r\n');
+    await env.FEEDBACK_MAIL.send(new EmailMessage(env.FEEDBACK_FROM, env.FEEDBACK_TO, raw));
+    return true;
+  } catch { return false; } // still saved in D1
+}
+
 async function api(req: Request, env: Env, url: URL): Promise<Response> {
   await schema(env.DB);
   const path = url.pathname.slice(4);
@@ -249,6 +271,21 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     return json({ ok: true }, { headers: { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });
   }
   if (path === '/me') return json({ signedIn: !!uid, userId: uid });
+
+  // ── Feedback: saved in D1 first, then a copy goes to the Innova Space inbox. Works signed in or not (like Nudge!). ──
+  if (path === '/feedback') {
+    const message = String(body.message ?? '').trim().slice(0, 4000);
+    if (!message) return oops(400, 'empty');
+    const ip = b64u.enc(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`dearme:${req.headers.get('cf-connecting-ip') ?? ''}`)))).slice(0, 22);
+    const recent = (await env.DB.prepare('SELECT COUNT(*) AS n FROM dm_feedback WHERE ip = ? AND created_at > ?').bind(ip, Date.now() - 3600e3).first<{ n: number }>())?.n ?? 0;
+    if (recent >= 10) return oops(429, 'slow-down');
+    const kind = String(body.kind ?? 'Other').slice(0, 40), info = String(body.info ?? '').slice(0, 1000), version = String(body.version ?? '').slice(0, 20);
+    const replyTo = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(body.replyTo ?? '').trim()) ? String(body.replyTo).trim().slice(0, 120) : '';
+    const id = rid();
+    await env.DB.prepare('INSERT INTO dm_feedback (id, created_at, user_id, kind, message, reply_to, info, version, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, Date.now(), uid, kind, message, replyTo, info, version, ip).run();
+    if (await mailFeedback(env, { id, kind, message, replyTo, info, version, signedIn: !!uid })) await env.DB.prepare('UPDATE dm_feedback SET mailed = 1 WHERE id = ?').bind(id).run();
+    return json({ ok: true });
+  }
 
   // ── Evening reminders (no account needed: a subscription is just this phone and a time) ──
   if (path === '/push/key') return json({ key: (await vapidKeys(env)).pub });

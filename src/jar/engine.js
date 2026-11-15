@@ -548,7 +548,10 @@ export function drawOrbPreview(canvas, inside, size){
   var c=canvas.getContext('2d'); var o={x:0,y:0,r:size*0.36,th:inside,ci:0,a:0,base:0,hue:1};
   var sK=K; K=dpr; var s=orbSprite(o), h=haloSprite(o); K=sK;
   c.globalCompositeOperation='lighter'; c.drawImage(h,(size*dpr-h.width)/2,(size*dpr-h.height)/2);
-  c.globalCompositeOperation='source-over'; c.drawImage(s,(size*dpr-s.width)/2,(size*dpr-s.height)/2);
+  // fade the glow out before the canvas edge, so there's never a square behind the orb
+  var D=size*dpr, m=c.createRadialGradient(D/2,D/2,0,D/2,D/2,D/2); m.addColorStop(0,'rgba(0,0,0,1)'); m.addColorStop(0.62,'rgba(0,0,0,.85)'); m.addColorStop(1,'rgba(0,0,0,0)');
+  c.globalCompositeOperation='destination-in'; c.fillStyle=m; c.fillRect(0,0,D,D);
+  c.globalCompositeOperation='source-over'; c.drawImage(s,(D-s.width)/2,(D-s.height)/2);
 }
 export const JAR_STYLES = Object.keys(JARS).map(function(k){ return { id:k, name:JARS[k].name, level:JARS[k].lv }; });
 export const INSIDES = Object.keys(THEMES).map(function(k){ return { id:k, name:THEMES[k].name, level:THEMES[k].lv, colors:THEMES[k].pal.length }; });
