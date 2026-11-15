@@ -76,3 +76,37 @@ export function wireSheetSwipe(sheet: HTMLElement, dim: HTMLElement, close: () =
     } else { sheet.style.transition = 'transform 160ms ease-out'; sheet.style.transform = ''; dim.style.background = ''; }
   });
 }
+
+/**
+ * Android's back gesture (and the browser Back button) = Dear Me's back, not "leave the app".
+ * While there is somewhere to go back to (a sheet, a page with a back arrow, or Shelf/Settings instead of the Jar),
+ * one extra history entry is kept; Back pops it and we close the sheet, tap the back arrow or return to the Jar.
+ * On the Jar with nothing open, Back leaves the app as usual.
+ */
+export function wireSystemBack(closeSheet: () => void): void {
+  let pushed = false, ignore = 0, queued = false;
+  const target = (): (() => void) | null => {
+    if (document.querySelector('.sheet-back:not(.out)')) return closeSheet;
+    const arrow = document.querySelector<HTMLElement>('#main .detail-head .icon-btn');
+    if (arrow) return () => arrow.click();
+    const tab = document.querySelector<HTMLElement>('.tabbar [aria-current="page"]')?.dataset.tab;
+    const jar = document.querySelector<HTMLElement>('.tabbar [data-tab="jar"]');
+    if (tab && tab !== 'jar' && jar) return () => jar.click();
+    return null;
+  };
+  const sync = () => {
+    queued = false;
+    const deep = !!target();
+    if (deep && !pushed) { history.pushState({ dearmeBack: true }, ''); pushed = true; }
+    else if (!deep && pushed) { pushed = false; ignore++; history.back(); } // went back inside the app: drop our entry
+  };
+  const later = () => { if (!queued) { queued = true; requestAnimationFrame(sync); } };
+  addEventListener('popstate', () => {
+    pushed = false;
+    if (ignore) { ignore--; return; }
+    target()?.();
+    setTimeout(later, 250); // after the sheet closes or the page changes, keep an entry if there's still somewhere to go
+  });
+  new MutationObserver(later).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-current', 'class'] });
+  later();
+}
