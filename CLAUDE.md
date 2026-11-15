@@ -20,6 +20,7 @@ Vite + TypeScript (no framework), Dexie over IndexedDB (`src/db`), vite-plugin-p
 - Bottom bar: Jar · Shelf · Settings (three-line icon). Header: date, then "Dear Me," (or "Dear <name>," when Use my name is on).
 - Floating glowing particles behind Home, Shelf and Welcome; everything respects reduced motion.
 - Offline first: no account needed for the jar, promises, shelf and the safety check. First sign-in merges local data, never replaces it.
+- Text isn't selectable anywhere (no highlight or copy menu on long press); only inputs and textareas are (`base.css`).
 - Phone first, 320–440 px. Respect safe areas. Touch targets ≥ 44 px.
 - Copy: gentle, short, Taglish allowed where the Bible uses it.
 
