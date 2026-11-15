@@ -16,7 +16,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#1a0a2a',
-        theme_color: '#1a0a2a',
+        theme_color: '#341556',
         icons: [
           { src: '/icons/app-icon-180.png', sizes: '180x180', type: 'image/png' },
           { src: '/icons/app-icon-512.png', sizes: '512x512', type: 'image/png' },
