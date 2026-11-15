@@ -4,7 +4,7 @@ import { esc } from '../lib/util';
 import { activeJar, JAR_SIZE, makeOrb, orbsIn } from '../logic/jar';
 import { INSIDES, JAR_STYLES, unmountJar } from '../jar/engine';
 import { safetySheet } from './safety';
-import { cloud, createPasskey, friendlyError, passkeysWork, signInWithPasskey, signOut, syncNow } from '../lib/cloud';
+import { cloud, createPasskey, friendlyError, passkeysWork, signInWithPasskey, signOut, syncNow, deleteAccount } from '../lib/cloud';
 import { clearReminder, needsInstall, setReminder, testReminder } from '../lib/push';
 import { openSheet } from './sheet';
 import { feedbackSheet } from './feedback';
@@ -237,7 +237,8 @@ function accountRows(): string {
   const last = c.lastSync ? new Date(c.lastSync).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'not yet';
   return `<button class="row" data-acct="sync"><span><span class="t">Signed in</span><span class="d">${c.error ? esc(c.error) : `Synced ${esc(last)} · tap to sync now`}</span></span>${svg(icon.chev, 18)}</button>
     <button class="row" data-acct="add"><span><span class="t">Add a passkey on this device</span><span class="d">For a phone or laptop outside your iCloud Keychain</span></span>${svg(icon.chev, 18)}</button>
-    <button class="row" data-acct="out"><span><span class="t">Sign out</span><span class="d">Your jars stay on this phone</span></span>${svg(icon.chev, 18)}</button>`;
+    <button class="row" data-acct="out"><span><span class="t">Sign out</span><span class="d">Your jars stay on this phone</span></span>${svg(icon.chev, 18)}</button>
+    <button class="row" data-acct="delete"><span><span class="t">Delete my account</span><span class="d">Your account and synced data, in every Innova Space app</span></span>${svg(icon.chev, 18)}</button>`;
 }
 
 export function signInSheet(after?: () => void): void {
@@ -256,8 +257,25 @@ ${passkeysWork() ? `<button class="btn" id="pk-new">Create a passkey</button><bu
   }, 'Sign in');
 }
 
+function deleteAccountSheet(): void {
+  openSheet(`<p class="serif sheet-title">Delete your account?</p>
+<p class="sheet-copy">Removes your Innova Space account and everything synced in Nudge!, Noggin?, Drift. and Dear Me,. Your jars and promises on this phone stay. This can\u2019t be undone.</p>
+<p class="sheet-copy">You can also remove the passkey from your phone or password manager.</p>
+<button class="btn" id="del-yes">Delete my account</button>
+<button class="btn-text" id="del-no" style="align-self:center">Keep my account</button>`, (el, close) => {
+    el.querySelector('#del-no')!.addEventListener('click', close);
+    const yes = el.querySelector<HTMLButtonElement>('#del-yes')!;
+    yes.addEventListener('click', async () => {
+      yes.disabled = true;
+      try { await deleteAccount(); close(); toast('Your account is deleted. Your jars are still on this phone.'); void render(); }
+      catch (e) { yes.disabled = false; toast(friendlyError(e)); }
+    });
+  }, 'Delete account');
+}
+
 async function account(act: string): Promise<void> {
   if (act === 'start') return signInSheet();
+  if (act === 'delete') return deleteAccountSheet();
   if (act === 'new' || act === 'in') {
     try { if (act === 'new') await createPasskey((await getSettings()).name); else await signInWithPasskey(); toast(act === 'new' ? 'Signed in. Your jars are safe.' : 'Signed in. Your jars are joined.'); await syncNow(); }
     catch (e) { toast(friendlyError(e)); }

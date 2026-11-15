@@ -46,6 +46,12 @@ export async function signOut(): Promise<void> {
   cloud.set({ signedIn: false });
 }
 
+/** Delete my account: removes the Innova Space account and everything synced, in every app. This device keeps its own copy. */
+export async function deleteAccount(): Promise<void> {
+  await call('/account/delete', { confirm: 'delete-my-account' });
+  cloud.set({ signedIn: false });
+}
+
 export const passkeysWork = () => typeof window.PublicKeyCredential === 'function';
 export const friendlyError = (e: unknown): string => {
   const n = (e as Error)?.name, m = (e as Error)?.message;

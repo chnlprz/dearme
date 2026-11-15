@@ -265,6 +265,13 @@ async function api(req: Request, env: Env, url: URL): Promise<Response> {
     await env.DB.prepare('UPDATE credentials SET counter = ? WHERE id = ?').bind(v.authenticationInfo.newCounter, cred.id).run();
     return json({ ok: true, userId: cred.user_id }, { headers: { 'set-cookie': await startSession(env, cred.user_id) } });
   }
+  // ── Delete my account (Settings): everything in every Innova Space app, then sign out here ──
+  if (path === '/account/delete') {
+    if (!uid) return oops(401, 'signed-out');
+    if (body.confirm !== 'delete-my-account') return oops(400, 'confirm');
+    await deleteAccount(env, uid);
+    return json({ ok: true }, { headers: { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });
+  }
   if (path === '/auth/logout') {
     const m = (req.headers.get('cookie') ?? '').match(new RegExp(`${COOKIE}=([^;]+)`));
     if (m) await env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(m[1]).run();
@@ -341,3 +348,14 @@ export default {
     ctx.waitUntil(reminders(env));
   },
 } satisfies ExportedHandler<Env>;
+
+/** Delete my account: one shared Innova Space account, so every app's rows for this person go (any table in the
+ *  shared D1 with a user_id column, so new tables are covered), then the account itself. One transaction. */
+async function deleteAccount(env: Env, userId: string): Promise<void> {
+  const { results } = await env.DB.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'").all<{ name: string; sql: string | null }>();
+  const tables = (results ?? []).filter((t) => /^[A-Za-z0-9_]+$/.test(t.name) && /\buser_id\b/.test(t.sql ?? ''));
+  await env.DB.batch([
+    ...tables.map((t) => env.DB.prepare(`DELETE FROM "${t.name}" WHERE user_id = ?`).bind(userId)),
+    env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId),
+  ]);
+}
