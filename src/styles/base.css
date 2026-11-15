@@ -1,6 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; min-width: 0; }
 html, body { margin: 0; padding: 0; overscroll-behavior: none; }
-html { background: var(--night); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+/* The page background itself starts at the top of the sky, so the iOS status bar area (and any overscroll) is one continuous colour */
+html { background: var(--night-top) linear-gradient(180deg, var(--night-top) 0%, var(--night-mid) 45%, var(--night) 100%) no-repeat; background-size: 100% 100lvh; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 body { color: var(--ink); font: calc(15px * var(--text-scale)) / 1.45 var(--sans); min-height: 100dvh; overscroll-behavior: none; }
 /* The evening sky: one fixed layer behind everything */
 html::before {
