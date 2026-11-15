@@ -266,6 +266,11 @@ function deleteAccountSheet(): void {
     el.querySelector('#del-no')!.addEventListener('click', close);
     const yes = el.querySelector<HTMLButtonElement>('#del-yes')!;
     yes.addEventListener('click', async () => {
+      if (!yes.dataset.sure) {
+        yes.dataset.sure = '1'; yes.textContent = 'Yes, delete it for good';
+        el.querySelector('.sheet-title')!.textContent = 'Delete it for good?';
+        return;
+      }
       yes.disabled = true;
       try { await deleteAccount(); close(); toast('Your account is deleted. Your jars are still on this phone.'); void render(); }
       catch (e) { yes.disabled = false; toast(friendlyError(e)); }
