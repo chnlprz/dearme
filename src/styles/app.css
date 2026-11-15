@@ -1,7 +1,7 @@
 /* ---------- shell ---------- */
 .shell { max-width: 440px; margin: 0 auto; min-height: 100dvh; position: relative; }
 .view { min-height: 100dvh; display: flex; flex-direction: column;
-  padding: calc(env(safe-area-inset-top) + 22px) 0 calc(env(safe-area-inset-bottom) + var(--tabbar) + 12px); }
+  padding: calc(env(safe-area-inset-top) + 22px) 0 calc(max(8px, env(safe-area-inset-bottom)) + var(--tabbar) + 12px); }
 .head { padding: 0 22px; display: flex; flex-direction: column; gap: 8px; }
 .head .date { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .head .wordmark { font-size: 40px; }
@@ -10,7 +10,7 @@
 
 /* ---------- tab bar: Jar · Shelf · Settings ---------- */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; border-top: 1px solid var(--line); background: rgba(26, 10, 42, .92);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); padding: 6px 18px calc(env(safe-area-inset-bottom) + 10px); }
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); padding: 6px max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); } /* same as Nudge! */
 .tabbar .in { max-width: 440px; margin: 0 auto; display: flex; justify-content: space-around; }
 .tabbar button { border: 0; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px;
   min-width: 88px; min-height: 52px; justify-content: center; font-size: 11px; font-weight: 500; }
